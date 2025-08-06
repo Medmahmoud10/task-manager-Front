@@ -1,0 +1,217 @@
+<div class="container-fluid px-0">
+  <!-- Message Overlay -->
+  <div *ngIf="showMessage" class="message-overlay" [ngClass]="messageType">
+    <div class="message-content">
+      <i class="fas" [ngClass]="messageType === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+      {{ messageText }}
+    </div>
+  </div>
+  
+  <div class="user-manager">
+    <div class="execution-header">
+      <div class="search-container">
+        <input type="text" class="search-input" placeholder="Search by username, email, name..." [(ngModel)]="searchQuery" (keydown)="onSearchKeydown($event)">
+        <div class="search-results" *ngIf="searchQuery && !isSearching">
+          <div class="search-item" *ngFor="let result of searchResults" (click)="showUser(result.id)">
+            <span>{{result.username}}</span>
+            <small>{{result.email}}</small>
+            <div class="user-info">
+              <small>{{result.first_name}} {{result.last_name}}</small>
+            </div>
+          </div>
+          <div class="no-results" *ngIf="searchResults.length === 0">
+            No results found
+          </div>
+        </div>
+      </div>
+      <button class="search-btn gradient-btn" (click)="searchUsers()" [disabled]="isSearching">
+        <i class="fas fa-search" *ngIf="!isSearching"></i>
+        <div class="btn-loader" *ngIf="isSearching"></div>
+        {{isSearching ? 'Searching...' : 'Search Users'}}
+      </button>
+      <button class="clear-btn" (click)="clearSearch()" *ngIf="searchQuery">
+        Clear
+      </button>
+      <button class="count-btn" (click)="getUserCount()" [disabled]="isCountLoading">
+        <div class="btn-loader" *ngIf="isCountLoading"></div>
+        {{isCountLoading ? 'Loading...' : 'Users: ' + userCount}}
+      </button>
+      <button class="theme-btn" (click)="toggleTheme()">
+        <i class="fas" [ngClass]="isDarkMode ? 'fa-sun' : 'fa-moon'"></i>
+        {{ isDarkMode ? 'Light' : 'Dark' }}
+      </button>
+    </div>
+
+    <!-- Single User View -->
+    <div *ngIf="showSingleUser && selectedUser" class="single-user-view">
+      <div class="user-detail-card">
+        <h3>User Details #{{selectedUser.id}}</h3>
+        <div class="detail-row">
+          <span class="detail-label">Username:</span>
+          <span class="detail-value">{{ selectedUser.username }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Email:</span>
+          <span class="detail-value">{{ selectedUser.email }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">First Name:</span>
+          <span class="detail-value">{{ selectedUser.first_name }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Last Name:</span>
+          <span class="detail-value">{{ selectedUser.last_name }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Phone:</span>
+          <span class="detail-value">{{ selectedUser.phone || 'No phone' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Address:</span>
+          <span class="detail-value">{{ selectedUser.adress || 'No address' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Date of Birth:</span>
+          <span class="detail-value">{{ selectedUser.date_of_birth | date: 'short' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Bio:</span>
+          <span class="detail-value">{{ selectedUser.bio || 'No bio' }}</span>
+        </div>
+        <div class="action-buttons">
+          <button (click)="editUser(selectedUser)">Edit</button>
+          <button (click)="showSingleUser = false" class="back-button">Back to List</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- User List View -->
+    <div *ngIf="!showSingleUser">
+      <div class="user-form" [ngClass]="{'dark-theme': isDarkMode}">
+        <input [(ngModel)]="newUser.username" placeholder="Username" required>
+        <input [(ngModel)]="newUser.password" type="password" placeholder="Password" required>
+        <input [(ngModel)]="newUser.email" type="email" placeholder="Email" required>
+        <input [(ngModel)]="newUser.first_name" placeholder="First Name">
+        <input [(ngModel)]="newUser.last_name" placeholder="Last Name">
+        <input [(ngModel)]="newUser.phone" placeholder="Phone">
+        <input [(ngModel)]="newUser.adress" placeholder="Address">
+        <input [(ngModel)]="newUser.date_of_birth" type="date" placeholder="Date of Birth">
+        <textarea [(ngModel)]="newUser.bio" placeholder="Bio"></textarea>
+        
+        <div class="form-actions">
+          <button *ngIf="!isEditing" (click)="addUser()" [disabled]="isAdding">
+            <span *ngIf="isAdding" class="loader"></span>
+            {{ isAdding ? 'Adding...' : 'Add User' }}
+          </button>
+          <button *ngIf="isEditing" (click)="updateUser()" [disabled]="isUpdating">
+            <span *ngIf="isUpdating" class="loader"></span>
+            {{ isUpdating ? 'Updating...' : 'Update User' }}
+          </button>
+          <button *ngIf="isEditing" (click)="resetForm()">Cancel</button>
+        </div>
+      </div>
+
+      <div class="user-list" [ngClass]="{'dark-theme': isDarkMode}">
+        <div *ngIf="isLoading" class="loading-container">
+          <div class="spinner"></div>
+          <p>Loading users...</p>
+        </div>
+        <table class="user-table" *ngIf="!isLoading">
+          <thead>
+            <tr>
+              <th (click)="sortUsers('id')" class="sortable">
+                ID 
+                <span *ngIf="sortColumn === 'id'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortUsers('username')" class="sortable">
+                Username 
+                <span *ngIf="sortColumn === 'username'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortUsers('email')" class="sortable">
+                Email 
+                <span *ngIf="sortColumn === 'email'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortUsers('first_name')" class="sortable">
+                First Name 
+                <span *ngIf="sortColumn === 'first_name'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortUsers('last_name')" class="sortable">
+                Last Name 
+                <span *ngIf="sortColumn === 'last_name'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortUsers('phone')" class="sortable">
+                Phone 
+                <span *ngIf="sortColumn === 'phone'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortUsers('adress')" class="sortable">
+                Address 
+                <span *ngIf="sortColumn === 'adress'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortUsers('date_of_birth')" class="sortable">
+                Date of Birth 
+                <span *ngIf="sortColumn === 'date_of_birth'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortUsers('bio')" class="sortable">
+                Bio 
+                <span *ngIf="sortColumn === 'bio'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortUsers('created_at')" class="sortable">
+                Created At 
+                <span *ngIf="sortColumn === 'created_at'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortUsers('updated_at')" class="sortable">
+                Updated At 
+                <span *ngIf="sortColumn === 'updated_at'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let user of users" (click)="showUser(user.id)" class="clickable-row">
+              <td>{{ user.id }}</td>
+              <td>{{ user.username }}</td>
+              <td>{{ user.email }}</td>
+              <td>{{ user.first_name }}</td>
+              <td>{{ user.last_name }}</td>
+              <td>{{ user.phone }}</td>
+              <td>{{ user.adress }}</td>
+              <td>{{ user.date_of_birth | date: 'short' }}</td>
+              <td>{{ user.bio }}</td>
+              <td>{{ user.created_at | date: 'short' }}</td>
+              <td>{{ user.updated_at | date: 'short' }}</td>
+              <td class="actions">
+                <button (click)="editUser(user); $event.stopPropagation()">Edit</button>
+                <button (click)="deleteUser(user.id); $event.stopPropagation()" [disabled]="isDeleting">
+                  <span *ngIf="isDeleting" class="loader"></span>
+                  {{ isDeleting ? 'Deleting...' : 'Delete' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

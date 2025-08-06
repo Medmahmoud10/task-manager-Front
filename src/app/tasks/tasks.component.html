@@ -1,0 +1,337 @@
+<div class="container-fluid px-0">
+  <!-- Message Overlay -->
+  <div *ngIf="showMessage" class="message-overlay" [ngClass]="messageType">
+    <div class="message-content">
+      <i class="fas" [ngClass]="messageType === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+      {{ messageText }}
+    </div>
+  </div>
+  
+  <div class="task-manager">
+    <div class="execution-header">
+      <div class="search-container">
+        <input type="text" class="search-input" placeholder="Search by title, description or priority..." [(ngModel)]="searchQuery" (keydown)="onSearchKeydown($event)">
+        <div class="search-results" *ngIf="searchQuery && !isSearching">
+          <div class="search-item" *ngFor="let result of searchResults" (click)="showTaskDetails(result)">
+            <span>{{result.title}}</span>
+            <small>{{result.description}}</small>
+            <div class="task-info">
+              <small>Priority: {{getPriorityText(result.priority)}} | Categorie: {{getCategoryDisplay(result)}}</small>
+            </div>
+          </div>
+          <div class="no-results" *ngIf="searchResults.length === 0">
+            No results found
+          </div>
+        </div>
+      </div>
+      <button class="search-btn gradient-btn" (click)="searchTasks()" [disabled]="isSearching">
+        <i class="fas fa-search" *ngIf="!isSearching"></i>
+        <div class="btn-loader" *ngIf="isSearching"></div>
+        {{isSearching ? 'Searching...' : 'Search Tasks'}}
+      </button>
+      <button class="clear-btn" (click)="clearSearch()" *ngIf="searchQuery">
+        Clear
+      </button>
+      <button class="count-btn" (click)="getTaskCount()" [disabled]="isCountLoading">
+        <div class="btn-loader" *ngIf="isCountLoading"></div>
+        {{isCountLoading ? 'Loading...' : 'Tasks: ' + taskCount}}
+      </button>
+      <button class="theme-btn" (click)="toggleTheme()">
+        <i class="fas" [ngClass]="isDarkMode ? 'fa-sun' : 'fa-moon'"></i>
+        {{ isDarkMode ? 'Light' : 'Dark' }}
+      </button>
+      <style>
+        .gradient-btn {
+          background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 25px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .gradient-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+        .gradient-btn:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+          transform: none;
+        }
+        .search-container {
+          position: relative;
+          width: 300px;
+        }
+        .search-input {
+          padding: 10px 15px;
+          border-radius: 20px;
+          border: 2px solid #e0e0e0;
+          width: 100%;
+          transition: all 0.3s ease;
+        }
+        .search-input:focus {
+          border-color: #4ECDC4;
+          box-shadow: 0 0 10px rgba(78,205,196,0.1);
+          outline: none;
+        }
+        .search-results {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background: white;
+          border-radius: 10px;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+          margin-top: 5px;
+          max-height: 300px;
+          overflow-y: auto;
+          z-index: 1000;
+        }
+        .search-item {
+          padding: 10px 15px;
+          border-bottom: 1px solid #eee;
+          cursor: pointer;
+        }
+        .search-item:hover {
+          cursor: pointer;
+        }
+        .search-item:hover {
+          background: #f5f5f5;
+        }
+        .search-item span {
+          display: block;
+          font-weight: 500;
+        }
+        .search-item small {
+          color: #666;
+        }
+        .task-info {
+          margin-top: 5px;
+        }
+        .task-info small {
+          font-size: 11px;
+          color: #888;
+        }
+        .no-results {
+          padding: 15px;
+          text-align: center;
+          color: #666;
+        }
+        .btn-loader {
+          width: 16px;
+          height: 16px;
+          border: 2px solid #ffffff;
+          border-top: 2px solid transparent;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        .clear-btn {
+          background: #f44336;
+          color: white;
+          border: none;
+          padding: 10px 15px;
+          border-radius: 20px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        .clear-btn:hover {
+          background: #d32f2f;
+        }
+        .count-btn {
+          background: #2196F3;
+          color: white;
+          border: none;
+          padding: 10px 15px;
+          border-radius: 20px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+        }
+        .count-btn:hover {
+          background: #1976D2;
+        }
+        .count-btn:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .message-overlay {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 9999;
+          padding: 20px 30px;
+          border-radius: 10px;
+          color: white;
+          font-weight: bold;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+          animation: fadeInOut 3s ease-in-out;
+        }
+        .message-overlay.success {
+          background: linear-gradient(45deg, #4CAF50, #45a049);
+        }
+        .message-overlay.error {
+          background: linear-gradient(45deg, #f44336, #d32f2f);
+        }
+        .message-content {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        @keyframes fadeInOut {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+          20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
+      </style>
+</div>
+    <!-- Single Task View -->
+<div *ngIf="showSingleTask && selectedTask" class="single-task-view">
+      <div class="task-detail-card">
+        <h3>Task #{{selectedTask.id}} {{selectedTask.title}}</h3>
+        <div class="detail-row">
+          <span class="detail-label">Title:</span>
+          <span class="detail-value">{{ selectedTask.title }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Description:</span>
+          <span class="detail-value">{{ selectedTask.description || 'No description' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Priority:</span>
+          <span class="detail-value">{{ getPriorityText(selectedTask.priority) }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Categorie:</span>
+          <span class="detail-value">{{ getDisplayCategory(selectedTask) }}</span>
+          
+        </div>
+        <div class="action-buttons">
+          <button (click)="editTask(selectedTask)">Edit</button>
+          <button (click)="showSingleTask = false" class="back-button">Back to List</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Task List View -->
+    <div *ngIf="!showSingleTask">
+      <div class="task-form" [ngClass]="{'dark-theme': isDarkMode}">
+        <input [(ngModel)]="newTask.title" placeholder="Title" required>
+        <textarea [(ngModel)]="newTask.description" placeholder="Description"></textarea>
+        
+              <select [(ngModel)]="newTask.categorie_id" required>
+            <option *ngFor="let categorie of categories" [value]="categorie.id">
+              {{ categorie.name }}
+              </option>
+              </select>
+        
+        <select [(ngModel)]="newTask.priority" required>
+          <option value="1">High</option>
+          <option value="2">Medium</option>
+          <option value="3">Low</option>
+        </select>
+        <div class="form-actions">
+          <button *ngIf="!isEditing" (click)="addTask()" [disabled]="isAdding">
+            <span *ngIf="isAdding" class="loader"></span>
+            {{ isAdding ? 'Adding...' : 'Add Task' }}
+          </button>
+          <button *ngIf="isEditing" (click)="updateTask()" [disabled]="isUpdating">
+            <span *ngIf="isUpdating" class="loader"></span>
+            {{ isUpdating ? 'Updating...' : 'Update Task' }}
+          </button>
+          <button *ngIf="isEditing" (click)="resetForm()">Cancel</button>
+        </div>
+      </div>
+
+      <div class="task-list" [ngClass]="{'dark-theme': isDarkMode}">
+        <div *ngIf="isLoading" class="loading-container">
+          <div class="spinner"></div>
+          <p>Loading tasks...</p>
+        </div>
+        <table class="task-table" *ngIf="!isLoading">
+          <thead>
+            <tr>
+              <ng-container matColumnDef="id">
+              <th mat-header-cell *matHeaderCellDef>ID</th>
+              <td mat-cell *matCellDef="let task">{{ task.id }}</td>
+              </ng-container>
+              <th (click)="sortTasks('id')" class="sortable">
+                Id 
+                <span *ngIf="sortColumn === 'id'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortTasks('title')" class="sortable">
+                Title 
+                <span *ngIf="sortColumn === 'title'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortTasks('description')" class="sortable">
+                Description 
+                <span *ngIf="sortColumn === 'description'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortTasks('priority')" class="sortable">
+                Priority 
+                <span *ngIf="sortColumn === 'priority'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortTasks('categorie_id')" class="sortable">
+                Categories 
+                <span *ngIf="sortColumn === 'categorie_id'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortTasks('created_at')" class="sortable">
+                Created At 
+                <span *ngIf="sortColumn === 'created_at'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortTasks('updated_at')" class="sortable">
+                Updated At 
+                <span *ngIf="sortColumn === 'updated_at'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let task of tasks" (click)="showTaskDetails(task)" class="clickable-row">
+              <td>{{ task.id }}</td>
+              <td>{{ task.title }}</td>
+              <td>{{ task.description }}</td>
+              <td>{{ getPriorityText(task.priority) }}</td>
+              <td>{{ getDisplayCategory(task) }}</td>
+              <td>{{ task.created_at | date: 'short' }}</td>
+              <td>{{ task.updated_at | date: 'short' }}</td>
+              <td class="actions">
+                <button (click)="editTask(task); $event.stopPropagation()">Edit</button>
+                <button (click)="deleteTask(task.id); $event.stopPropagation()" [disabled]="isDeleting">
+                  <span *ngIf="isDeleting" class="loader"></span>
+                  {{ isDeleting ? 'Deleting...' : 'Delete' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,41 @@
+.navbar-custom {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  
+  .navbar-brand {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  
+  .nav-link {
+    position: relative;
+    margin: 0 10px;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: white;
+      transition: width 0.3s ease;
+    }
+    
+    &:hover::after {
+      width: 100%;
+    }
+    
+    &.active {
+      font-weight: 500;
+    }
+  }
+  
+  .navbar-toggler {
+    border-color: rgba(255,255,255,0.2);
+    
+    &:focus {
+      box-shadow: 0 0 0 0.15rem rgba(255,255,255,0.25);
+    }
+  }
+} 

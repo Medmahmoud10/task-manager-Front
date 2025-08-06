@@ -1,0 +1,133 @@
+<div class="container-fluid px-0">
+  <!-- Message Overlay -->
+  <div *ngIf="showMessage" class="message-overlay" [ngClass]="messageType">
+    <div class="message-content">
+      <i class="fas" [ngClass]="messageType === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+      {{ messageText }}
+    </div>
+  </div>
+  
+  <div class="category-manager">
+    <div class="execution-header">
+      <div class="search-container">
+        <input type="text" class="search-input" placeholder="Search by name..." [(ngModel)]="searchQuery" (keydown)="onSearchKeydown($event)">
+        <div class="search-results" *ngIf="searchQuery && !isSearching">
+          <div class="search-item" *ngFor="let result of searchResults" (click)="showCategoryDetails(result)">
+            <span>{{result.name}}</span>
+          </div>
+          <div class="no-results" *ngIf="searchResults.length === 0">
+            No results found
+          </div>
+        </div>
+      </div>
+      <button class="search-btn gradient-btn" (click)="searchCategories()" [disabled]="isSearching">
+        <i class="fas fa-search" *ngIf="!isSearching"></i>
+        <div class="btn-loader" *ngIf="isSearching"></div>
+        {{isSearching ? 'Searching...' : 'Search Categories'}}
+        
+        <!-- Add error message display -->
+        <div *ngIf="searchError" class="error-message">
+          Invalid search. Please try again.
+        </div>
+      </button>
+      <button class="clear-btn" (click)="clearSearch()" *ngIf="searchQuery">
+        Clear
+      </button>
+      <button class="count-btn" (click)="getCategoryCount()" [disabled]="isCountLoading">
+        <div class="btn-loader" *ngIf="isCountLoading"></div>
+        {{isCountLoading ? 'Loading...' : 'Categories: ' + categoryCount}}
+      </button>
+      <button class="theme-btn" (click)="toggleTheme()">
+        <i class="fas" [ngClass]="isDarkMode ? 'fa-sun' : 'fa-moon'"></i>
+        {{ isDarkMode ? 'Light' : 'Dark' }}
+      </button>
+    </div>
+
+    <!-- Single Category View -->
+    <div *ngIf="showSingleCategory && selectedCategory" class="single-category-view">
+      <div class="category-detail-card">
+        <h3>Category Details #{{selectedCategory.id}}</h3>
+        <div class="detail-row">
+          <span class="detail-label">Name:</span>
+          <span class="detail-value">{{selectedCategory.name}}</span>
+        </div>
+        <div class="action-buttons">
+          <button (click)="editCategory(selectedCategory)">Edit</button>
+          <button (click)="showSingleCategory = false" class="back-button">Back to List</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category List View -->
+    <div *ngIf="!showSingleCategory">
+      <div class="category-form" [ngClass]="{'dark-theme': isDarkMode}">
+        <input [(ngModel)]="newCategory.name" placeholder="Category Name" required>
+        
+        <div class="form-actions">
+          <button *ngIf="!isEditing" (click)="addCategory()" [disabled]="isAdding">
+            <span *ngIf="isAdding" class="loader"></span>
+            {{ isAdding ? 'Adding...' : 'Add Category' }}
+          </button>
+          <button *ngIf="isEditing" (click)="updateCategory()" [disabled]="isUpdating">
+            <span *ngIf="isUpdating" class="loader"></span>
+            {{ isUpdating ? 'Updating...' : 'Update Category' }}
+          </button>
+          <button *ngIf="isEditing" (click)="resetForm()">Cancel</button>
+        </div>
+      </div>
+
+      <div class="category-list" [ngClass]="{'dark-theme': isDarkMode}">
+        <div *ngIf="isLoading" class="loading-container">
+          <div class="spinner"></div>
+          <p>Loading categories...</p>
+        </div>
+        <table class="category-table" *ngIf="!isLoading">
+          <thead>
+            <tr>
+              <th (click)="sortCategories('id')" class="sortable">
+                ID 
+                <span *ngIf="sortColumn === 'id'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortCategories('name')" class="sortable">
+                Name 
+                <span *ngIf="sortColumn === 'name'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortCategories('created_at')" class="sortable">
+                Created At 
+                <span *ngIf="sortColumn === 'created_at'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="sortCategories('updated_at')" class="sortable">
+                Updated At 
+                <span *ngIf="sortColumn === 'updated_at'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let category of categories" (click)="showCategoryDetails(category)" class="clickable-row">
+              <td>{{ category.id }}</td>
+              <td>{{ category.name }}</td>
+              <td>{{ category.created_at | date: 'short' }}</td>
+              <td>{{ category.updated_at | date: 'short' }}</td>
+              <td class="actions">
+                <button (click)="editCategory(category); $event.stopPropagation()">Edit</button>
+                <button (click)="deleteCategory(category.id); $event.stopPropagation()" [disabled]="isDeleting">
+                  <span *ngIf="isDeleting" class="loader"></span>
+                  {{ isDeleting ? 'Deleting...' : 'Delete' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
