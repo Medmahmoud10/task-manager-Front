@@ -637,15 +637,35 @@ button:disabled {
       color: white;
     }
     
-    tr {
-      &:hover {
-        background-color: rgba(60, 60, 60, 0.5);
-      }
+    tr:hover td {
+      background-color: #f8f9fa;
+      cursor: pointer;
+      color: #060202;
     }
     
     td {
       color: white;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+.single-profile-view.dark-theme {
+  .profile-detail-card {
+    background: rgba(45, 45, 45, 0.95) !important;
+    color: white;
+    
+    h3 {
+      color: white;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .detail-label {
+      color: #ccc;
+    }
+    
+    .detail-value {
+      color: white;
     }
   }
 }

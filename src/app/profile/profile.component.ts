@@ -35,17 +35,7 @@ export class ProfileComponent {
   private apiUrl = 'http://127.0.0.1:8000/api/profiles';
   
   
-  selectedProfile: Profile | null = {
-  id: 0,
-  name: '',
-  adresse: '',
-  avatar: '',
-  birthdate: '',
-  bio: '',
-  user_id: 0,
-  created_at: '',
-  updated_at: ''
-};  
+  selectedProfile: Profile | null = null;  
   newProfile: Partial<Profile> = {
     name: '',
     adresse: '',
@@ -156,15 +146,45 @@ export class ProfileComponent {
     if (!this.validateProfile()) return;
     
     this.isAdding = true;
-    this.http.post<Profile>(this.apiUrl, this.newProfile).subscribe({
+    console.log('Adding profile:', this.newProfile);
+    
+    // Clean the profile data before sending
+    const profileData = {
+      name: this.newProfile.name?.trim(),
+      adresse: this.newProfile.adresse?.trim() || '',
+      avatar: this.newProfile.avatar?.trim() || '',
+      birthdate: this.newProfile.birthdate || null,
+      bio: this.newProfile.bio?.trim() || '',
+      user_id: this.newProfile.user_id || 1
+    };
+    
+    console.log('Sending profile data:', profileData);
+    
+    this.http.post<Profile>(this.apiUrl, profileData).subscribe({
       next: (response) => {
+        console.log('Profile added successfully:', response);
         this.loadProfiles();
         this.resetForm();
         this.showSuccessMessage('Profile added successfully!');
         this.isAdding = false;
       },
       error: (err) => {
-        this.showErrorMessage('Failed to add profile');
+        console.error('Error adding profile:', err);
+        console.error('Error details:', err.error);
+        console.error('Status:', err.status);
+        
+        let errorMessage = 'Failed to add profile';
+        if (err.error && err.error.message) {
+          errorMessage = err.error.message;
+        } else if (err.error && typeof err.error === 'string') {
+          errorMessage = err.error;
+        } else if (err.status === 422) {
+          errorMessage = 'Validation error: Please check your input';
+        } else if (err.status === 500) {
+          errorMessage = 'Server error: Please try again later';
+        }
+        
+        this.showErrorMessage(errorMessage);
         this.isAdding = false;
       }
     });
@@ -253,10 +273,12 @@ export class ProfileComponent {
     
     setTimeout(() => {
       this.searchResults = this.profiles.filter(profile => 
-        profile.name.toLowerCase().includes(query) ||
-        profile.adresse.toLowerCase().includes(query) ||
-        profile.bio.toLowerCase().includes(query)
+        profile.name?.toLowerCase().includes(query) ||
+        profile.adresse?.toLowerCase().includes(query) ||
+        profile.bio?.toLowerCase().includes(query)
       );
+      console.log('Search results:', this.searchResults);
+      console.log('First result adresse:', this.searchResults[0]?.adresse);
       this.isSearching = false;
     }, 500);
   }

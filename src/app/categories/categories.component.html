@@ -44,15 +44,15 @@
     </div>
 
     <!-- Single Category View -->
-    <div *ngIf="showSingleCategory && selectedCategory" class="single-category-view">
+    <div *ngIf="showSingleCategory && selectedCategory" class="single-category-view" [ngClass]="{'dark-theme': isDarkMode}">
       <div class="category-detail-card">
-        <h3>Category Details #{{selectedCategory.id}}</h3>
+        <h3>Category #{{selectedCategory.id}} {{selectedCategory.name}}</h3>
         <div class="detail-row">
           <span class="detail-label">Name:</span>
           <span class="detail-value">{{selectedCategory.name}}</span>
         </div>
         <div class="action-buttons">
-          <button (click)="editCategory(selectedCategory)">Edit</button>
+          
           <button (click)="showSingleCategory = false" class="back-button">Back to List</button>
         </div>
       </div>

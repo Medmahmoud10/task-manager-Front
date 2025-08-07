@@ -280,4 +280,10 @@ export class UsersComponent {
   toggleTheme() {
     this.isDarkMode = !this.isDarkMode;
   }
+
+  showUserDetails(user: User) {
+    console.log('Showing user details:', user);
+    this.selectedUser = user;
+    this.showSingleUser = true;
+  }
 }

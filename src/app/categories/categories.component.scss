@@ -4,7 +4,7 @@
   overflow: auto;
   margin: 0 auto;
   padding: 100px 20px;
-  font-family: Arial, sans-serif, bold;
+  font-family: 'Inter', 'Segoe UI', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
   background-size: 400% 400%;
   animation: gradientShift 15s ease infinite;
@@ -388,15 +388,35 @@
       color: white;
     }
     
-    tr {
-      &:hover {
-        background-color: rgba(60, 60, 60, 0.5);
-      }
+    tr:hover td {
+      background-color: #f8f9fa;
+      cursor: pointer;
+      color: #060202;
     }
     
     td {
       color: white;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+.single-category-view.dark-theme {
+  .category-detail-card {
+    background: rgba(45, 45, 45, 0.95) !important;
+    color: white;
+    
+    h3 {
+      color: white;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .detail-label {
+      color: #ccc;
+    }
+    
+    .detail-value {
+      color: white;
     }
   }
 }

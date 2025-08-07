@@ -219,6 +219,12 @@ export class CategoriesComponent {
     this.searchResults = [];
   }
 
+  showCategoryDetails(category: Category) {
+    console.log('Showing category details:', category);
+    this.selectedCategory = category;
+    this.showSingleCategory = true;
+  }
+
   clearSearch() {
     this.searchQuery = '';
     this.searchResults = [];

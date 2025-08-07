@@ -198,7 +198,7 @@
       </style>
 </div>
     <!-- Single Task View -->
-<div *ngIf="showSingleTask && selectedTask" class="single-task-view">
+<div *ngIf="showSingleTask && selectedTask" class="single-task-view" [ngClass]="{'dark-theme': isDarkMode}">
       <div class="task-detail-card">
         <h3>Task #{{selectedTask.id}} {{selectedTask.title}}</h3>
         <div class="detail-row">
@@ -219,7 +219,7 @@
           
         </div>
         <div class="action-buttons">
-          <button (click)="editTask(selectedTask)">Edit</button>
+          
           <button (click)="showSingleTask = false" class="back-button">Back to List</button>
         </div>
       </div>

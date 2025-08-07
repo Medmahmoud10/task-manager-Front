@@ -4,7 +4,7 @@
   overflow: auto;
   margin: 0 auto;
   padding: 100px 20px;
-  font-family: Arial, sans-serif, bold;
+  font-family: 'Inter', 'Segoe UI', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
   background-size: 400% 400%;
   animation: gradientShift 15s ease infinite;
@@ -160,11 +160,13 @@
       tr {
         transition: background-color 0.2s;
         cursor: pointer;
+        color: #060202;
 
-        &:hover {
-          background-color: #f8f9fa;
-          cursor: pointer;
-        }
+      }
+      tr:hover td {
+        background-color: #f8f9fa;
+        cursor: pointer;
+        color: #060202;
       }
 
       .actions {
@@ -341,6 +343,7 @@ button:disabled {
   
   &:hover {
     background-color: #e9ecef;
+    color: #060202;
   }
 }
 
@@ -385,23 +388,48 @@ button:disabled {
 
 .task-list.dark-theme {
   background: rgba(45, 45, 45, 0.95) !important;
-  color: white;
+  color: rgb(0, 0, 0);
   
   .task-table {
     th {
       background-color: rgba(60, 60, 60, 0.8);
-      color: white;
+      color: rgb(15, 12, 12);
     }
     
     tr {
       &:hover {
         background-color: rgba(60, 60, 60, 0.5);
+        cursor: pointer;
+        
+        td {
+          color: #f0f0f0;
+        }
       }
     }
     
     td {
       color: white;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+.single-task-view.dark-theme {
+  .task-detail-card {
+    background: rgba(45, 45, 45, 0.95) !important;
+    color: rgb(0, 0, 0);
+    
+    h3 {
+      color: rgb(0, 0, 0);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .detail-label {
+      color: #060202;
+    }
+    
+    .detail-value {
+      color: rgb(1, 0, 0);
     }
   }
 }
