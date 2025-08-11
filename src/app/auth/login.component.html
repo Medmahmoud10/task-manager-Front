@@ -1,0 +1,67 @@
+<div class="login-container">
+  <div class="login-card">
+    <h2>Task Manager Login</h2>
+    
+    <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input 
+          type="email" 
+          id="email" 
+          [(ngModel)]="credentials.email" 
+          name="email" 
+          required 
+          placeholder="Enter your email"
+          (blur)="checkEmail()"
+          (input)="checkEmail()"
+        >
+        <div class="email-status" *ngIf="isCheckingEmail || emailMessage">
+          <span *ngIf="isCheckingEmail" class="checking-loader">
+            <span class="loader"></span> Checking email...
+          </span>
+          <span *ngIf="!isCheckingEmail && emailMessage" 
+                [ngClass]="{
+                  'email-found': emailExists && !emailMessage.includes('timeout') && !emailMessage.includes('Unable'),
+                  'email-not-found': !emailExists && !emailMessage.includes('timeout') && !emailMessage.includes('Unable'),
+                  'email-error': emailMessage.includes('timeout') || emailMessage.includes('Unable')
+                }">
+            {{ emailMessage }}
+          </span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          [(ngModel)]="credentials.password" 
+          name="password" 
+          required 
+          placeholder="Enter your password"
+        >
+      </div>
+      
+      <div class="error-message" *ngIf="errorMessage">
+        {{ errorMessage }}
+      </div>
+      
+      <button 
+        type="submit" 
+        class="login-btn" 
+        [disabled]="isLoading"
+      >
+        <span *ngIf="isLoading" class="loader"></span>
+        {{ isLoading ? 'Logging in...' : 'Login' }}
+      </button>
+      
+      <button 
+        type="button" 
+        class="register-btn" 
+        (click)="goToRegister()"
+      >
+        New User? Create Account
+      </button>
+    </form>
+  </div>
+</div>

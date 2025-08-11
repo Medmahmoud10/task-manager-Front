@@ -54,6 +54,10 @@
           <span class="detail-value">{{ selectedProfile.name || 'No name' }}</span>
         </div>
         <div class="detail-row">
+          <span class="detail-label">Address:</span>
+          <span class="detail-value">{{ selectedProfile.adresse || 'No address' }}</span>
+        </div>
+        <div class="detail-row">
           <span class="detail-label">Avatar:</span>
           <span class="detail-value">{{ selectedProfile.avatar || 'No avatar' }}</span>
         </div>
@@ -128,6 +132,12 @@
                   {{ sortDirection === 'asc' ? '↑' : '↓' }}
                 </span>
               </th>
+              <th (click)="sortProfiles('adresse')" class="sortable">
+                Address 
+                <span *ngIf="sortColumn === 'adresse'" class="sort-arrow">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
               <th (click)="sortProfiles('avatar')" class="sortable">
                 Avatar 
                 <span *ngIf="sortColumn === 'avatar'" class="sort-arrow">
@@ -171,6 +181,7 @@
             <tr *ngFor="let profile of profiles" (click)="showProfileDetails(profile)" class="clickable-row">
               <td>{{ profile.id }}</td>
               <td>{{ profile.name }}</td>
+              <td>{{ profile.adresse || 'No address' }}</td>
               <td>{{ profile.avatar || 'No avatar' }}</td>
               <td>{{ profile.birthdate | date: 'short' }}</td>
               <td>{{ profile.bio || 'No bio' }}</td>
