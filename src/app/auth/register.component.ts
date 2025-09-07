@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { Component, inject } from '@angular/core';
+=======
+import { Component } from '@angular/core';
+>>>>>>> c74b596ce5b981f53a109103fa2b015a8e3e74af
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -9,7 +13,11 @@ import { HttpClient } from '@angular/common/http';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './register.component.html',
+<<<<<<< HEAD
   styleUrls: ['./register.component.scss']
+=======
+  styleUrl: './register.component.scss'
+>>>>>>> c74b596ce5b981f53a109103fa2b015a8e3e74af
 })
 export class RegisterComponent {
   registerData = {
@@ -20,7 +28,11 @@ export class RegisterComponent {
     first_name: '',
     last_name: '',
     phone: '',
+<<<<<<< HEAD
     adresse: '',
+=======
+    adress: '',
+>>>>>>> c74b596ce5b981f53a109103fa2b015a8e3e74af
     date_of_birth: '',
     bio: ''
   };
@@ -28,12 +40,20 @@ export class RegisterComponent {
   isLoading = false;
   errorMessage = '';
   successMessage = '';
+<<<<<<< HEAD
   passwordStrength = '';
   showPassword = false;
   showConfirmPassword = false;
 
   private http = inject(HttpClient);
   private router = inject(Router);
+=======
+
+  constructor(
+    private http: HttpClient,
+    private router: Router
+  ) {}
+>>>>>>> c74b596ce5b981f53a109103fa2b015a8e3e74af
 
   onSubmit() {
     if (!this.validateForm()) return;
@@ -43,7 +63,11 @@ export class RegisterComponent {
     this.successMessage = '';
 
     this.http.post('http://localhost:8000/api/register', this.registerData).subscribe({
+<<<<<<< HEAD
       next: (response: any) => {
+=======
+      next: (response) => {
+>>>>>>> c74b596ce5b981f53a109103fa2b015a8e3e74af
         console.log('Registration successful:', response);
         this.successMessage = 'Registration successful! Redirecting to login...';
         setTimeout(() => {
@@ -52,12 +76,17 @@ export class RegisterComponent {
       },
       error: (error) => {
         console.error('Registration error:', error);
+<<<<<<< HEAD
         this.errorMessage = this.getErrorMessage(error);
+=======
+        this.errorMessage = error.error?.message || 'Registration failed. Please try again.';
+>>>>>>> c74b596ce5b981f53a109103fa2b015a8e3e74af
         this.isLoading = false;
       }
     });
   }
 
+<<<<<<< HEAD
   checkPasswordStrength() {
     const password = this.registerData.password;
     if (!password) {
@@ -112,16 +141,32 @@ export class RegisterComponent {
     }
 
     // Password confirmation
+=======
+
+
+  private validateForm(): boolean {
+    if (!this.registerData.username || !this.registerData.email || !this.registerData.password) {
+      this.errorMessage = 'Username, email and password are required';
+      return false;
+    }
+    
+
+    
+>>>>>>> c74b596ce5b981f53a109103fa2b015a8e3e74af
     if (this.registerData.password !== this.registerData.password_confirmation) {
       this.errorMessage = 'Passwords do not match';
       return false;
     }
     
+<<<<<<< HEAD
     // Password length
+=======
+>>>>>>> c74b596ce5b981f53a109103fa2b015a8e3e74af
     if (this.registerData.password.length < 8) {
       this.errorMessage = 'Password must be at least 8 characters';
       return false;
     }
+<<<<<<< HEAD
 
     return true;
   }
@@ -145,6 +190,12 @@ export class RegisterComponent {
     return 'Registration failed. Please try again.';
   }
 
+=======
+    
+    return true;
+  }
+
+>>>>>>> c74b596ce5b981f53a109103fa2b015a8e3e74af
   goToLogin() {
     this.router.navigate(['/login']);
   }

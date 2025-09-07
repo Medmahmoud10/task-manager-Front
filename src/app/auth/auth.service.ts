@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
@@ -69,6 +70,21 @@ interface JwtPayload {
 @Injectable()
 export class SharedService {
   // Common functionality
+=======
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { tap, switchMap } from 'rxjs/operators';
+
+interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+interface LoginResponse {
+  token: string;
+  user: any;
+>>>>>>> c74b596ce5b981f53a109103fa2b015a8e3e74af
 }
 
 @Injectable({
@@ -76,6 +92,7 @@ export class SharedService {
 })
 export class AuthService {
   private apiUrl = 'http://localhost:8000/api';
+<<<<<<< HEAD
   private isBrowser: boolean;
   currentToken: string = ''
   private tokenSubject = new BehaviorSubject<string | null>(null);
@@ -695,3 +712,36 @@ debugUserStructure(): void {
     return false;
   }
 }
+=======
+  private tokenSubject = new BehaviorSubject<string | null>(this.getToken());
+  public token$ = this.tokenSubject.asObservable();
+
+  constructor(private http: HttpClient) {}
+
+  login(credentials: LoginRequest): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, credentials).pipe(
+      tap(response => {
+        localStorage.setItem('token', response.token);
+        this.tokenSubject.next(response.token);
+      })
+    );
+  }
+
+  logout(): Observable<any> {
+    return this.http.post(`${this.apiUrl}/logout`, {}).pipe(
+      tap(() => {
+        localStorage.removeItem('token');
+        this.tokenSubject.next(null);
+      })
+    );
+  }
+
+  isAuthenticated(): boolean {
+    return !!this.getToken();
+  }
+
+  getToken(): string | null {
+    return localStorage.getItem('token');
+  }
+}
+>>>>>>> c74b596ce5b981f53a109103fa2b015a8e3e74af
