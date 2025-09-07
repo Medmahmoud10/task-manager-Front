@@ -1,133 +1,229 @@
-<div class="container-fluid px-0">
-  <!-- Message Overlay -->
-  <div *ngIf="showMessage" class="message-overlay" [ngClass]="messageType">
-    <div class="message-content">
-      <i class="fas" [ngClass]="messageType === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
-      {{ messageText }}
-    </div>
-  </div>
+<!-- Message Alert -->
+<div *ngIf="showMessage" [class]="'message-alert ' + messageType" (click)="closeMessage()">
+  <span class="message-icon">{{ messageType === 'success' ? '✅' : '❌' }}</span>
+  <span class="message-text">{{ messageText }}</span>
+  <button class="message-close" (click)="closeMessage()">×</button>
+</div>
+
+<div class="categories-container" [class.dark-theme]="isDarkMode">
   
-  <div class="category-manager">
-    <div class="execution-header">
-      <div class="search-container">
-        <input type="text" class="search-input" placeholder="Search by name..." [(ngModel)]="searchQuery" (keydown)="onSearchKeydown($event)">
-        <div class="search-results" *ngIf="searchQuery && !isSearching">
-          <div class="search-item" *ngFor="let result of searchResults" (click)="showCategoryDetails(result)">
-            <span>{{result.name}}</span>
-          </div>
-          <div class="no-results" *ngIf="searchResults.length === 0">
-            No results found
+  <!-- Header Section -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="brand">
+        <h1 class="logo">Categories</h1>
+        <p class="tagline">Manage product categories</p>
+      </div>
+      
+      <div class="header-controls">
+        <button class="theme-toggle" (click)="toggleTheme()" [attr.title]="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+          <span class="theme-icon">{{ isDarkMode ? '☀️' : '🌙' }}</span>
+          <span class="theme-text">{{ isDarkMode ? 'Light' : 'Dark' }}</span>
+        </button>
+        
+        <button class="profile-btn" (click)="navigateToProfile()">
+          <span class="profile-icon">👤</span>
+          <span class="profile-text">My Profile</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="dashboard">
+      
+      <!-- Statistics Section -->
+      <div class="stats-grid">
+        <div class="stat-card total-categories">
+          <div class="stat-icon">📂</div>
+          <div class="stat-info">
+            <h3>{{ allCategories.length }}</h3>
+            <p>Total Categories</p>
           </div>
         </div>
       </div>
-      <button class="search-btn gradient-btn" (click)="searchCategories()" [disabled]="isSearching">
-        <i class="fas fa-search" *ngIf="!isSearching"></i>
-        <div class="btn-loader" *ngIf="isSearching"></div>
-        {{isSearching ? 'Searching...' : 'Search Categories'}}
-        
-        <!-- Add error message display -->
-        <div *ngIf="searchError" class="error-message">
-          Invalid search. Please try again.
-        </div>
-      </button>
-      <button class="clear-btn" (click)="clearSearch()" *ngIf="searchQuery">
-        Clear
-      </button>
-      <button class="count-btn" (click)="getCategoryCount()" [disabled]="isCountLoading">
-        <div class="btn-loader" *ngIf="isCountLoading"></div>
-        {{isCountLoading ? 'Loading...' : 'Categories: ' + categoryCount}}
-      </button>
-      <button class="theme-btn" (click)="toggleTheme()">
-        <i class="fas" [ngClass]="isDarkMode ? 'fa-sun' : 'fa-moon'"></i>
-        {{ isDarkMode ? 'Light' : 'Dark' }}
-      </button>
-    </div>
 
-    <!-- Single Category View -->
-    <div *ngIf="showSingleCategory && selectedCategory" class="single-category-view" [ngClass]="{'dark-theme': isDarkMode}">
-      <div class="category-detail-card">
-        <h3>Category #{{selectedCategory.id}} {{selectedCategory.name}}</h3>
-        <div class="detail-row">
-          <span class="detail-label">Name:</span>
-          <span class="detail-value">{{selectedCategory.name}}</span>
+      <!-- Filters & Actions Section -->
+      <div class="filters-section">
+        <div class="search-box">
+          <div class="search-icon">🔍</div>
+          <input 
+            type="text" 
+            [(ngModel)]="searchQuery"
+            (input)="filterCategories()"
+            placeholder="Search categories..." 
+            class="search-input"
+          />
         </div>
-        <div class="action-buttons">
+        
+        <div class="filter-group">
+          <button (click)="clearFilters()" class="clear-filters-btn">
+            <span>🔄</span>
+            Clear Filters
+          </button>
           
-          <button (click)="showSingleCategory = false" class="back-button">Back to List</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Category List View -->
-    <div *ngIf="!showSingleCategory">
-      <div class="category-form" [ngClass]="{'dark-theme': isDarkMode}">
-        <input [(ngModel)]="newCategory.name" placeholder="Category Name" required>
-        
-        <div class="form-actions">
-          <button *ngIf="!isEditing" (click)="addCategory()" [disabled]="isAdding">
-            <span *ngIf="isAdding" class="loader"></span>
-            {{ isAdding ? 'Adding...' : 'Add Category' }}
+          <button (click)="createCategory()" class="primary-btn create-category-btn">
+            <span>➕</span>
+            Create New Category
           </button>
-          <button *ngIf="isEditing" (click)="updateCategory()" [disabled]="isUpdating">
-            <span *ngIf="isUpdating" class="loader"></span>
-            {{ isUpdating ? 'Updating...' : 'Update Category' }}
-          </button>
-          <button *ngIf="isEditing" (click)="resetForm()">Cancel</button>
         </div>
       </div>
 
-      <div class="category-list" [ngClass]="{'dark-theme': isDarkMode}">
-        <div *ngIf="isLoading" class="loading-container">
-          <div class="spinner"></div>
-          <p>Loading categories...</p>
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="loading-state">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+          <span class="visually-hidden">Loading categories...</span>
         </div>
-        <table class="category-table" *ngIf="!isLoading">
+        <p>Loading categories...</p>
+      </div>
+
+      <!-- Categories Table -->
+      <div *ngIf="!isLoading" class="categories-table">
+        <table class="table">
           <thead>
             <tr>
-              <th (click)="sortCategories('id')" class="sortable">
-                ID 
-                <span *ngIf="sortColumn === 'id'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortCategories('name')" class="sortable">
-                Name 
-                <span *ngIf="sortColumn === 'name'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortCategories('created_at')" class="sortable">
-                Created At 
-                <span *ngIf="sortColumn === 'created_at'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortCategories('updated_at')" class="sortable">
-                Updated At 
-                <span *ngIf="sortColumn === 'updated_at'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
+              <th (click)="filterCategories()">Name</th>
+              <th>Created At</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let category of categories" (click)="showCategoryDetails(category)" class="clickable-row">
-              <td>{{ category.id }}</td>
-              <td>{{ category.name }}</td>
-              <td>{{ category.created_at | date: 'short' }}</td>
-              <td>{{ category.updated_at | date: 'short' }}</td>
-              <td class="actions">
-                <button (click)="editCategory(category); $event.stopPropagation()">Edit</button>
-                <button (click)="deleteCategory(category.id); $event.stopPropagation()" [disabled]="isDeleting">
-                  <span *ngIf="isDeleting" class="loader"></span>
-                  {{ isDeleting ? 'Deleting...' : 'Delete' }}
+            <tr *ngFor="let category of pagedCategories" class="category-row">
+              <td class="category-name">{{ category.name }}</td>
+              <td class="category-date">{{ category.created_at | date:'medium' }}</td>
+              <td class="category-actions">
+                <button (click)="viewCategoryDetails(category)" class="action-btn view-btn" title="View Details">
+                  👁️
+                </button>
+                <button (click)="editCategory(category)" class="action-btn edit-btn" title="Edit Category">
+                  ✏️
+                </button>
+                <button (click)="confirmDelete(category.id, category.name)" class="action-btn delete-btn" title="Delete Category" [disabled]="isDeleting">
+                  <span *ngIf="isDeleting" class="spinner-border spinner-border-sm" role="status"></span>
+                  <span *ngIf="!isDeleting">🗑️</span>
                 </button>
               </td>
             </tr>
           </tbody>
         </table>
+
+        <!-- Empty State -->
+        <div *ngIf="!isLoading && filteredCategories.length === 0 && allCategories.length > 0" class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <h3>No categories found</h3>
+          <p>Try adjusting your search criteria</p>
+          <button (click)="clearFilters()" class="primary-btn">Clear Search</button>
+        </div>
+
+        <div *ngIf="!isLoading && allCategories.length === 0" class="empty-state">
+          <div class="empty-icon">📂</div>
+          <h3>No categories yet</h3>
+          <p>There are no categories in the system</p>
+          <button (click)="createCategory()" class="primary-btn">Create First Category</button>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div *ngIf="!isLoading && filteredCategories.length > 0" class="pagination-controls">
+          <div class="pagination-info">
+            Showing {{ (currentPage - 1) * itemsPerPage + 1 }} - 
+            {{ Math.min(currentPage * itemsPerPage, filteredCategories.length) }} 
+            of {{ filteredCategories.length }} categories
+          </div>
+          
+          <div class="pagination-buttons">
+            <button (click)="previousPage()" [disabled]="currentPage === 1" class="pagination-btn">
+              ← Previous
+            </button>
+            
+            <div class="page-numbers">
+              <span *ngFor="let page of getPageNumbers()" (click)="goToPage(page)" [class.active]="page === currentPage" class="page-number">
+                {{ page }}
+              </span>
+            </div>
+            
+            <button (click)="nextPage()" [disabled]="currentPage === totalPages" class="pagination-btn">
+              Next →
+            </button>
+          </div>
+
+          <div class="items-per-page">
+            <label for="itemsPerPage">Items per page:</label>
+            <select id="itemsPerPage" [(ngModel)]="itemsPerPage" (change)="onItemsPerPageChange()" class="page-select">
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Details Modal -->
+      <div *ngIf="selectedCategory && showCategoryDetails" class="modal-overlay" (click)="closeCategoryDetails()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Category Details</h2>
+            <button class="modal-close" (click)="closeCategoryDetails()">×</button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="category-details">
+              <div class="detail-row">
+                <span class="detail-label">Name:</span>
+                <span class="detail-value">{{ selectedCategory.name }}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Created:</span>
+                <span class="detail-value">{{ selectedCategory.created_at | date:'fullDate' }}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Last Updated:</span>
+                <span class="detail-value">{{ selectedCategory.updated_at | date:'fullDate' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create/Edit Category Modal -->
+      <div *ngIf="showEditModal" class="modal-overlay" (click)="closeEditModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>{{ isCreating ? 'Create New Category' : 'Edit Category' }}</h2>
+            <button class="modal-close" (click)="closeEditModal()">×</button>
+          </div>
+          
+          <div class="modal-body">
+            <form (ngSubmit)="saveCategory()" class="edit-form">
+              <div class="form-group">
+                <label for="category-name">Category Name *</label>
+                <input
+                  id="category-name"
+                  [(ngModel)]="editingCategory!.name"
+                  name="name"
+                  required
+                  class="form-input"
+                  [disabled]="isSaving"
+                  placeholder="Enter category name"
+                />
+              </div>
+              
+              <div class="form-actions">
+                <button type="submit" class="modal-btn save-btn" [disabled]="isSaving">
+                  <span *ngIf="isSaving" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                  {{ isSaving ? 'Saving...' : (isCreating ? 'Create Category' : 'Save Changes') }}
+                </button>
+                <button type="button" (click)="closeEditModal()" class="modal-btn cancel-btn" [disabled]="isSaving">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
+  </main>
 </div>

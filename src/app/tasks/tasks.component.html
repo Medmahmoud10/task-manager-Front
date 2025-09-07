@@ -1,337 +1,430 @@
-<div class="container-fluid px-0">
-  <!-- Message Overlay -->
-  <div *ngIf="showMessage" class="message-overlay" [ngClass]="messageType">
-    <div class="message-content">
-      <i class="fas" [ngClass]="messageType === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
-      {{ messageText }}
-    </div>
-  </div>
-  
-  <div class="task-manager">
-    <div class="execution-header">
-      <div class="search-container">
-        <input type="text" class="search-input" placeholder="Search by title, description or priority..." [(ngModel)]="searchQuery" (keydown)="onSearchKeydown($event)">
-        <div class="search-results" *ngIf="searchQuery && !isSearching">
-          <div class="search-item" *ngFor="let result of searchResults" (click)="showTaskDetails(result)">
-            <span>{{result.title}}</span>
-            <small>{{result.description}}</small>
-            <div class="task-info">
-              <small>Priority: {{getPriorityText(result.priority)}} | Categorie: {{getCategoryDisplay(result)}}</small>
-            </div>
-          </div>
-          <div class="no-results" *ngIf="searchResults.length === 0">
-            No results found
-          </div>
-        </div>
-      </div>
-      <button class="search-btn gradient-btn" (click)="searchTasks()" [disabled]="isSearching">
-        <i class="fas fa-search" *ngIf="!isSearching"></i>
-        <div class="btn-loader" *ngIf="isSearching"></div>
-        {{isSearching ? 'Searching...' : 'Search Tasks'}}
-      </button>
-      <button class="clear-btn" (click)="clearSearch()" *ngIf="searchQuery">
-        Clear
-      </button>
-      <button class="count-btn" (click)="getTaskCount()" [disabled]="isCountLoading">
-        <div class="btn-loader" *ngIf="isCountLoading"></div>
-        {{isCountLoading ? 'Loading...' : 'Tasks: ' + taskCount}}
-      </button>
-      <button class="theme-btn" (click)="toggleTheme()">
-        <i class="fas" [ngClass]="isDarkMode ? 'fa-sun' : 'fa-moon'"></i>
-        {{ isDarkMode ? 'Light' : 'Dark' }}
-      </button>
-      <style>
-        .gradient-btn {
-          background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
-          color: white;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 25px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-        .gradient-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-        }
-        .gradient-btn:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-          transform: none;
-        }
-        .search-container {
-          position: relative;
-          width: 300px;
-        }
-        .search-input {
-          padding: 10px 15px;
-          border-radius: 20px;
-          border: 2px solid #e0e0e0;
-          width: 100%;
-          transition: all 0.3s ease;
-        }
-        .search-input:focus {
-          border-color: #4ECDC4;
-          box-shadow: 0 0 10px rgba(78,205,196,0.1);
-          outline: none;
-        }
-        .search-results {
-          position: absolute;
-          top: 100%;
-          left: 0;
-          right: 0;
-          background: white;
-          border-radius: 10px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-          margin-top: 5px;
-          max-height: 300px;
-          overflow-y: auto;
-          z-index: 1000;
-        }
-        .search-item {
-          padding: 10px 15px;
-          border-bottom: 1px solid #eee;
-          cursor: pointer;
-        }
-        .search-item:hover {
-          cursor: pointer;
-        }
-        .search-item:hover {
-          background: #f5f5f5;
-        }
-        .search-item span {
-          display: block;
-          font-weight: 500;
-        }
-        .search-item small {
-          color: #666;
-        }
-        .task-info {
-          margin-top: 5px;
-        }
-        .task-info small {
-          font-size: 11px;
-          color: #888;
-        }
-        .no-results {
-          padding: 15px;
-          text-align: center;
-          color: #666;
-        }
-        .btn-loader {
-          width: 16px;
-          height: 16px;
-          border: 2px solid #ffffff;
-          border-top: 2px solid transparent;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-        .clear-btn {
-          background: #f44336;
-          color: white;
-          border: none;
-          padding: 10px 15px;
-          border-radius: 20px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-        .clear-btn:hover {
-          background: #d32f2f;
-        }
-        .count-btn {
-          background: #2196F3;
-          color: white;
-          border: none;
-          padding: 10px 15px;
-          border-radius: 20px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          align-items: center;
-          gap: 5px;
-        }
-        .count-btn:hover {
-          background: #1976D2;
-        }
-        .count-btn:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-        }
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        .message-overlay {
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          z-index: 9999;
-          padding: 20px 30px;
-          border-radius: 10px;
-          color: white;
-          font-weight: bold;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-          animation: fadeInOut 3s ease-in-out;
-        }
-        .message-overlay.success {
-          background: linear-gradient(45deg, #4CAF50, #45a049);
-        }
-        .message-overlay.error {
-          background: linear-gradient(45deg, #f44336, #d32f2f);
-        }
-        .message-content {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        @keyframes fadeInOut {
-          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-          20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-          80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-          100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-        }
-      </style>
+<!-- Message Alert -->
+<div *ngIf="showMessage" [class]="'message-alert ' + messageType" (click)="closeMessage()">
+  <span class="message-icon">{{ messageType === 'success' ? '✅' : '❌' }}</span>
+  <span class="message-text">{{ messageText }}</span>
+  <button class="message-close" (click)="closeMessage()">×</button>
 </div>
-    <!-- Single Task View -->
-<div *ngIf="showSingleTask && selectedTask" class="single-task-view" [ngClass]="{'dark-theme': isDarkMode}">
-      <div class="task-detail-card">
-        <h3>Task #{{selectedTask.id}} {{selectedTask.title}}</h3>
-        <div class="detail-row">
-          <span class="detail-label">Title:</span>
-          <span class="detail-value">{{ selectedTask.title }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Description:</span>
-          <span class="detail-value">{{ selectedTask.description || 'No description' }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Priority:</span>
-          <span class="detail-value">{{ getPriorityText(selectedTask.priority) }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Categorie:</span>
-          <span class="detail-value">{{ getDisplayCategory(selectedTask) }}</span>
-          
-        </div>
-        <div class="action-buttons">
-          
-          <button (click)="showSingleTask = false" class="back-button">Back to List</button>
-        </div>
+
+<div class="tasks-container" [class.dark-theme]="isDarkMode">
+  
+  <!-- Header Section -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="brand">
+        <h1 class="logo">Tasks Management</h1>
+        <p class="tagline">{{ isAdmin ? 'Manage all tasks' : 'View and manage your tasks' }}</p>
+      </div>
+      
+      <div class="header-controls">
+        <button class="theme-toggle" (click)="toggleTheme()" [attr.title]="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+          <span class="theme-icon">{{ isDarkMode ? '☀️' : '🌙' }}</span>
+          <span class="theme-text">{{ isDarkMode ? 'Light' : 'Dark' }}</span>
+        </button>
+        
+        <button class="profile-btn" (click)="navigateToProfile()">
+          <span class="profile-icon">👤</span>
+          <span class="profile-text">My Profile</span>
+        </button>
       </div>
     </div>
+  </header>
 
-    <!-- Task List View -->
-    <div *ngIf="!showSingleTask">
-      <div class="task-form" [ngClass]="{'dark-theme': isDarkMode}">
-        <input [(ngModel)]="newTask.title" placeholder="Title" required>
-        <textarea [(ngModel)]="newTask.description" placeholder="Description"></textarea>
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="dashboard">
+      
+      <!-- Statistics Section -->
+      <div class="stats-grid">
+        <div class="stat-card total-tasks">
+          <div class="stat-icon">📊</div>
+          <div class="stat-info">
+            <h3>{{ getTotalTasks() }}</h3>
+            <p>Total Tasks</p>
+          </div>
+        </div>
         
-              <select [(ngModel)]="newTask.categorie_id" required>
-            <option *ngFor="let categorie of categories" [value]="categorie.id">
-              {{ categorie.name }}
-              </option>
-              </select>
+        <div class="stat-card pending-tasks">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-info">
+            <h3>{{ getTaskCountByStatus('pending') }}</h3>
+            <p>Pending</p>
+          </div>
+        </div>
         
-        <select [(ngModel)]="newTask.priority" required>
-          <option value="1">High</option>
-          <option value="2">Medium</option>
-          <option value="3">Low</option>
-        </select>
-        <div class="form-actions">
-          <button *ngIf="!isEditing" (click)="addTask()" [disabled]="isAdding">
-            <span *ngIf="isAdding" class="loader"></span>
-            {{ isAdding ? 'Adding...' : 'Add Task' }}
-          </button>
-          <button *ngIf="isEditing" (click)="updateTask()" [disabled]="isUpdating">
-            <span *ngIf="isUpdating" class="loader"></span>
-            {{ isUpdating ? 'Updating...' : 'Update Task' }}
-          </button>
-          <button *ngIf="isEditing" (click)="resetForm()">Cancel</button>
+        <div class="stat-card progress-tasks">
+          <div class="stat-icon">🚀</div>
+          <div class="stat-info">
+            <h3>{{ getTaskCountByStatus('in_progress') }}</h3>
+            <p>In Progress</p>
+          </div>
+        </div>
+        
+        <div class="stat-card completed-tasks">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <h3>{{ getTaskCountByStatus('completed') }}</h3>
+            <p>Completed</p>
+          </div>
         </div>
       </div>
 
-      <div class="task-list" [ngClass]="{'dark-theme': isDarkMode}">
-        <div *ngIf="isLoading" class="loading-container">
-          <div class="spinner"></div>
-          <p>Loading tasks...</p>
+      <!-- Filters & Actions Section -->
+      <div class="filters-section">
+        <div class="search-box">
+          <div class="search-icon">🔍</div>
+          <input 
+            type="text" 
+            [(ngModel)]="searchQuery"
+            (input)="filterTasks()"
+            placeholder="Search tasks..." 
+            class="search-input"
+          />
         </div>
-        <table class="task-table" *ngIf="!isLoading">
+        
+        <div class="filter-group">
+          <select [(ngModel)]="statusFilter" (change)="filterTasks()" class="filter-select">
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+          </select>
+          
+          <select [(ngModel)]="priorityFilter" (change)="filterTasks()" class="filter-select">
+            <option value="all">All Priority</option>
+            <option value="1">High</option>
+            <option value="2">Medium</option>
+            <option value="3">Low</option>
+          </select>
+          
+          <select [(ngModel)]="categoryFilter" (change)="filterTasks()" class="filter-select">
+            <option value="all">All Categories</option>
+            <option *ngFor="let category of categories" [value]="category.id">
+              {{ category.name }}
+            </option>
+          </select>
+          
+          <button (click)="clearFilters()" class="clear-filters-btn">
+            <span>🔄</span>
+            Clear Filters
+          </button>
+          
+          <button *ngIf="isAdmin" (click)="createTask()" class="primary-btn create-task-btn">
+            <span>➕</span>
+            Create New Task
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="loading-state">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+          <span class="visually-hidden">Loading tasks...</span>
+        </div>
+        <p>Loading tasks...</p>
+      </div>
+
+      <!-- Tasks Table -->
+      <div *ngIf="!isLoading" class="tasks-table">
+        <table class="table">
           <thead>
             <tr>
-              <ng-container matColumnDef="id">
-              <th mat-header-cell *matHeaderCellDef>ID</th>
-              <td mat-cell *matCellDef="let task">{{ task.id }}</td>
-              </ng-container>
-              <th (click)="sortTasks('id')" class="sortable">
-                Id 
-                <span *ngIf="sortColumn === 'id'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortTasks('title')" class="sortable">
-                Title 
-                <span *ngIf="sortColumn === 'title'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortTasks('description')" class="sortable">
-                Description 
-                <span *ngIf="sortColumn === 'description'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortTasks('priority')" class="sortable">
-                Priority 
-                <span *ngIf="sortColumn === 'priority'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortTasks('categorie_id')" class="sortable">
-                Categories 
-                <span *ngIf="sortColumn === 'categorie_id'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortTasks('created_at')" class="sortable">
-                Created At 
-                <span *ngIf="sortColumn === 'created_at'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortTasks('updated_at')" class="sortable">
-                Updated At 
-                <span *ngIf="sortColumn === 'updated_at'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Category</th>
+              <th>Assigned To</th>
+              <th>Created</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let task of tasks" (click)="showTaskDetails(task)" class="clickable-row">
-              <td>{{ task.id }}</td>
-              <td>{{ task.title }}</td>
-              <td>{{ task.description }}</td>
-              <td>{{ getPriorityText(task.priority) }}</td>
-              <td>{{ getDisplayCategory(task) }}</td>
-              <td>{{ task.created_at | date: 'short' }}</td>
-              <td>{{ task.updated_at | date: 'short' }}</td>
-              <td class="actions">
-                <button (click)="editTask(task); $event.stopPropagation()">Edit</button>
-                <button (click)="deleteTask(task.id); $event.stopPropagation()" [disabled]="isDeleting">
-                  <span *ngIf="isDeleting" class="loader"></span>
-                  {{ isDeleting ? 'Deleting...' : 'Delete' }}
+            <tr *ngFor="let task of pagedTasks" class="task-row">
+              <td class="task-title">{{ task.title }}</td>
+              <td>
+                <span class="status-badge" [class]="getStatusClass(task.status)">
+                  {{ getStatusLabel(task.status) }}
+                </span>
+              </td>
+              <td>
+                <span class="priority-badge" [class]="getPriorityClass(task.priority)">
+                  {{ getPriorityLabel(task.priority) }}
+                </span>
+              </td>
+              <td class="task-category">{{ getCategoryName(task.categorie_id ?? null) }}</td>
+              <td class="task-user">{{ getUserName(task.user_id) }}</td>
+              <td class="task-date">{{ task.created_at | date:'shortDate' }}</td>
+              <td class="task-actions">
+                <button (click)="viewTaskDetails(task)" class="action-btn view-btn" title="View Details">
+                  👁️
                 </button>
+                <button (click)="editTask(task)" class="action-btn edit-btn" title="Edit Task">
+                  ✏️
+                </button>
+                <button *ngIf="isAdmin" (click)="confirmDelete(task.id, task.title)" class="action-btn delete-btn" title="Delete Task" [disabled]="isDeleting">
+                  <span *ngIf="isDeleting" class="spinner-border spinner-border-sm" role="status"></span>
+                  <span *ngIf="!isDeleting">🗑️</span>
+                </button>
+                
+                <!-- Quick Status Actions -->
+                <div class="quick-actions" *ngIf="!isAdmin || task.status !== 'completed'">
+                  <button *ngIf="task.status !== 'pending'" (click)="updateTaskStatus(task, 'pending')" class="status-btn pending-btn" title="Mark as Pending">
+                    ⏳
+                  </button>
+                  <button *ngIf="task.status !== 'in_progress'" (click)="updateTaskStatus(task, 'in_progress')" class="status-btn progress-btn" title="Mark as In Progress">
+                    🚀
+                  </button>
+                  <button *ngIf="isAdmin && task.status !== 'completed'" (click)="updateTaskStatus(task, 'completed')" class="status-btn complete-btn" title="Mark as Completed">
+                    ✅
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
+
+        <!-- Empty States -->
+        <div *ngIf="!isLoading && filteredTasks.length === 0 && allTasks.length > 0" class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <h3>No tasks found</h3>
+          <p>Try adjusting your search criteria or filters</p>
+          <button (click)="clearFilters()" class="primary-btn">Clear All Filters</button>
+        </div>
+
+        <div *ngIf="!isLoading && allTasks.length === 0" class="empty-state">
+          <div class="empty-icon">📝</div>
+          <h3>No tasks yet</h3>
+          <p>{{ isAdmin ? 'There are no tasks in the system' : 'You have no tasks assigned' }}</p>
+          <button *ngIf="isAdmin" (click)="createTask()" class="primary-btn">Create First Task</button>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div *ngIf="!isLoading && filteredTasks.length > 0" class="pagination-controls">
+          <div class="pagination-info">
+            Showing {{ (currentPage - 1) * itemsPerPage + 1 }} - 
+            {{ Math.min(currentPage * itemsPerPage, filteredTasks.length) }} 
+            of {{ filteredTasks.length }} tasks
+          </div>
+          
+          <div class="pagination-buttons">
+            <button (click)="previousPage()" [disabled]="currentPage === 1" class="pagination-btn">
+              ← Previous
+            </button>
+            
+            <div class="page-numbers">
+              <span *ngFor="let page of getPageNumbers()" (click)="goToPage(page)" [class.active]="page === currentPage" class="page-number">
+                {{ page }}
+              </span>
+            </div>
+            
+            <button (click)="nextPage()" [disabled]="currentPage === totalPages" class="pagination-btn">
+              Next →
+            </button>
+          </div>
+
+          <div class="items-per-page">
+            <label for="itemsPerPage">Items per page:</label>
+            <select id="itemsPerPage" [(ngModel)]="itemsPerPage" (change)="onItemsPerPageChange()" class="page-select">
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Task Details Modal -->
+      <div *ngIf="selectedTask && showTaskDetails" class="modal-overlay" (click)="closeTaskDetails()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Task Details</h2>
+            <button class="modal-close" (click)="closeTaskDetails()">×</button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="task-details-content">
+              <div class="detail-section">
+                <h3>{{ selectedTask.title }}</h3>
+                <p class="task-description">{{ selectedTask.description || 'No description provided' }}</p>
+              </div>
+              
+              <div class="details-grid">
+                <div class="detail-row">
+                  <span class="detail-label">Status:</span>
+                  <span class="detail-value status-badge" [class]="getStatusClass(selectedTask.status)">
+                    {{ getStatusLabel(selectedTask.status) }}
+                  </span>
+                </div>
+                
+                <div class="detail-row">
+                  <span class="detail-label">Priority:</span>
+                  <span class="detail-value priority-badge" [class]="getPriorityClass(selectedTask.priority)">
+                    {{ getPriorityLabel(selectedTask.priority) }}
+                  </span>
+                </div>
+                
+                <div class="detail-row">
+                  <span class="detail-label">Category:</span>
+                  <span class="detail-value">{{ getCategoryName(selectedTask.categorie_id) }}</span>
+                </div>
+                
+                <div class="detail-row">
+                  <span class="detail-label">Assigned To:</span>
+                  <span class="detail-value">{{ getUserName(selectedTask.user_id) }}</span>
+                </div>
+                
+                <div class="detail-row">
+                  <span class="detail-label">Profile:</span>
+                  <span class="detail-value">{{ getProfileName(selectedTask.profile_id) }}</span>
+                </div>
+                
+                <div class="detail-row">
+                  <span class="detail-label">Created:</span>
+                  <span class="detail-value">{{ selectedTask.created_at | date:'medium' }}</span>
+                </div>
+                
+                <div class="detail-row">
+                  <span class="detail-label">Last Updated:</span>
+                  <span class="detail-value">{{ selectedTask.updated_at | date:'medium' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create/Edit Task Modal -->
+      <div *ngIf="showEditModal" class="modal-overlay" (click)="closeEditModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>{{ isCreating ? 'Create New Task' : 'Edit Task' }}</h2>
+            <button class="modal-close" (click)="closeEditModal()">×</button>
+          </div>
+          
+          <div class="modal-body">
+            <form (ngSubmit)="saveTask()" class="edit-form">
+              <div class="form-group">
+                <label for="task-title">Title *</label>
+                <input
+                  id="task-title"
+                  [(ngModel)]="editingTask!.title"
+                  name="title"
+                  required
+                  class="form-input"
+                  [disabled]="isSaving"
+                  placeholder="Enter task title"
+                />
+              </div>
+              
+              <div class="form-group">
+                <label for="task-description">Description</label>
+                <textarea
+                  id="task-description"
+                  [(ngModel)]="editingTask!.description"
+                  name="description"
+                  class="form-textarea"
+                  [disabled]="isSaving"
+                  placeholder="Enter task description"
+                  rows="3"
+                ></textarea>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="task-status">Status</label>
+                  <select
+                    id="task-status"
+                    [(ngModel)]="editingTask!.status"
+                    name="status"
+                    class="form-select"
+                    [disabled]="isSaving"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="task-priority">Priority</label>
+                  <select
+                    id="task-priority"
+                    [(ngModel)]="editingTask!.priority"
+                    name="priority"
+                    class="form-select"
+                    [disabled]="isSaving"
+                  >
+                    <option value="1">High</option>
+                    <option value="2">Medium</option>
+                    <option value="3">Low</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="task-user">Assigned User *</label>
+                  <select
+                    id="task-user"
+                    [(ngModel)]="editingTask!.user_id"
+                    name="user_id"
+                    required
+                    class="form-select"
+                    [disabled]="isSaving"
+                  >
+                    <option value="">Select User</option>
+                    <option *ngFor="let user of users" [value]="user.id">
+                      {{ user.first_name }} {{ user.last_name }} ({{ user.username }})
+                    </option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label for="task-category">Category</label>
+                  <select
+                    id="task-category"
+                    [(ngModel)]="editingTask!.categorie_id"
+                    name="categorie_id"
+                    class="form-select"
+                    [disabled]="isSaving"
+                  >
+                    <option value="">Select Category</option>
+                    <option *ngFor="let category of categories" [value]="category.id">
+                      {{ category.name }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="task-profile">Profile</label>
+                <select
+                  id="task-profile"
+                  [(ngModel)]="editingTask!.profile_id"
+                  name="profile_id"
+                  class="form-select"
+                  [disabled]="isSaving"
+                >
+                  <option value="">Select Profile</option>
+                  <option *ngFor="let profile of profiles" [value]="profile.id">
+                    {{ profile.name }}
+                  </option>
+                </select>
+              </div>
+              
+              <div class="form-actions">
+                <button type="submit" class="modal-btn save-btn" [disabled]="isSaving">
+                  <span *ngIf="isSaving" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                  {{ isSaving ? 'Saving...' : (isCreating ? 'Create Task' : 'Save Changes') }}
+                </button>
+                <button type="button" (click)="closeEditModal()" class="modal-btn cancel-btn" [disabled]="isSaving">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
+  </main>
 </div>

@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { catchError, Observable, of, tap } from 'rxjs';
+import { catchError, Observable, of, tap, switchMap } from 'rxjs';
 
 interface Task {
   id: number;
@@ -75,7 +75,37 @@ interface Categorie {
   }
 
   getTasks(): Observable<Task[]> {
-    return this.http.get<Task[]>(this.apiUrl);
+    // Ensure categories are loaded before loading tasks
+    if (this.category.length === 0) {
+      return this.http.get<Categorie[]>('http://localhost:8000/api/categories').pipe(
+        tap(categories => {
+          this.category = categories;
+        }),
+        catchError(err => {
+          console.error('Error loading categories:', err);
+          return of([]);
+        }),
+        // After categories are loaded, load tasks
+        switchMap(() => this.http.get<Task[]>(this.apiUrl)),
+        tap((tasks: Task[]) => {
+          this.tasks = tasks;
+        }),
+        catchError(err => {
+          console.error('Error loading tasks:', err);
+          return of([]);
+        })
+      );
+    }
+    // If categories are already loaded, just load tasks
+    return this.http.get<Task[]>(this.apiUrl).pipe(
+      tap(tasks => {
+        this.tasks = tasks;
+      }),
+      catchError(err => {
+        console.error('Error loading tasks:', err);
+        return of([]);
+      })
+    );
   }
 
   addCategorie() {

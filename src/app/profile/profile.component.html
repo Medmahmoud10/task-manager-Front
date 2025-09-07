@@ -1,193 +1,412 @@
-<div class="container-fluid px-0">
-  <!-- Message Overlay -->
-  <div *ngIf="showMessage" class="message-overlay" [ngClass]="messageType">
-    <div class="message-content">
-      <i class="fas" [ngClass]="messageType === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
-      {{ messageText }}
-    </div>
-  </div>
+<!-- Message Alert -->
+<div *ngIf="showMessage" [class]="'message-alert ' + messageType" (click)="closeMessage()">
+  <span class="message-icon">{{ messageType === 'success' ? '✅' : '❌' }}</span>
+  <span class="message-text">{{ messageText }}</span>
+  <button class="message-close" (click)="closeMessage()">×</button>
+</div>
+
+<div class="profile-container" [class.dark-theme]="isDarkMode">
   
-  <div class="profile-manager">
-    <div class="execution-header">
-      <div class="search-container">
-        <input type="text" class="search-input" placeholder="Search by name, address or bio..." [(ngModel)]="searchQuery" (keydown)="onSearchKeydown($event)">
-        <div class="search-results" *ngIf="searchQuery && !isSearching">
-          <div class="search-item" *ngFor="let result of searchResults" (click)="showProfileDetails(result)">
-            <span>{{result.name}}</span>
+  <!-- Header Section -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="brand">
+        <h1 class="logo">{{ isAdmin ? 'Profiles Management' : 'My Profile' }}</h1>
+        <p class="tagline">{{ isAdmin ? 'Manage user profiles' : 'View and edit your profile' }}</p>
+      </div>
+      
+      <div class="header-controls">
+        <button class="theme-toggle" (click)="toggleTheme()" [attr.title]="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+          <span class="theme-icon">{{ isDarkMode ? '☀️' : '🌙' }}</span>
+          <span class="theme-text">{{ isDarkMode ? 'Light' : 'Dark' }}</span>
+        </button>
+        
+        <button class="profile-btn" (click)="navigateToProfile()">
+          <span class="profile-icon">👤</span>
+          <span class="profile-text">My Profile</span>
+        </button>
+
+        <button class="back-btn" (click)="backToTasks()">
+          <span class="back-icon">←</span>
+          <span class="back-text">Back to Tasks</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    
+    <!-- USER PROFILE VIEW -->
+    <div *ngIf="!isAdmin" class="user-profile-view">
+      <!-- Loading State -->
+      <div *ngIf="isUserProfileLoading" class="loading-state">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+          <span class="visually-hidden">Loading profile...</span>
+        </div>
+        <p>Loading your profile...</p>
+      </div>
+
+      <!-- Profile Content -->
+      <div *ngIf="!isUserProfileLoading && userProfile" class="profile-content">
+        <div class="profile-card">
+          <div class="profile-header">
+            <div class="profile-avatar">
+              <span class="avatar-icon">👤</span>
+            </div>
             <div class="profile-info">
-              <small>Bio: {{result.bio}}</small>
+              <h2 class="profile-name">{{ userProfile.name }}</h2>
+              <p class="profile-user-id">User ID: {{ userProfile.user_id }}</p>
             </div>
           </div>
-          <div class="no-results" *ngIf="searchResults.length === 0">
-            No results found
+
+          <div class="profile-details">
+            <div class="detail-item">
+              <span class="detail-label">📧 Bio:</span>
+              <span class="detail-value">{{ userProfile.bio || 'No bio provided' }}</span>
+            </div>
+            
+            <div class="detail-item">
+              <span class="detail-label">📅 Created:</span>
+              <span class="detail-value">{{ userProfile.created_at | date:'longDate' }}</span>
+            </div>
+            
+            <div class="detail-item">
+              <span class="detail-label">🔄 Last Updated:</span>
+              <span class="detail-value">{{ userProfile.updated_at | date:'longDate' }}</span>
+            </div>
+          </div>
+
+          <div class="profile-actions">
+            <button (click)="enableEditMode()" class="edit-btn" [disabled]="editMode">
+              ✏️ Edit Profile
+            </button>
+          </div>
+        </div>
+
+        <!-- Edit Form -->
+        <div *ngIf="editMode" class="edit-profile-form">
+          <h3>Edit Profile</h3>
+          <form (ngSubmit)="updateUserProfile()">
+            <div class="form-group">
+              <label for="edit-name">Name *</label>
+              <input
+                id="edit-name"
+                [(ngModel)]="editProfileData.name"
+                name="name"
+                required
+                class="form-input"
+                [disabled]="isUserUpdating"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="edit-bio">Bio</label>
+              <textarea
+                id="edit-bio"
+                [(ngModel)]="editProfileData.bio"
+                name="bio"
+                class="form-textarea"
+                [disabled]="isUserUpdating"
+                placeholder="Tell us about yourself..."
+              ></textarea>
+            </div>
+
+            
+
+            <div class="form-group">
+              <label for="edit-avatar">Avatar URL</label>
+              <input
+                id="edit-avatar"
+                [(ngModel)]="editProfileData.avatar"
+                name="avatar"
+                class="form-input"
+                [disabled]="isUserUpdating"
+                placeholder="https://example.com/avatar.jpg"
+              />
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="save-btn" [disabled]="isUserUpdating">
+                <span *ngIf="isUserUpdating" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                {{ isUserUpdating ? 'Saving...' : 'Save Changes' }}
+              </button>
+              <button type="button" (click)="cancelEdit()" class="cancel-btn" [disabled]="isUserUpdating">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- No Profile State -->
+      <div *ngIf="!isUserProfileLoading && !userProfile" class="empty-state">
+        <div class="empty-icon">👤</div>
+        <h3>No Profile Found</h3>
+        <p>You don't have a profile yet. Please contact an administrator.</p>
+      </div>
+    </div>
+
+    <!-- ADMIN PROFILES VIEW -->
+    <div *ngIf="isAdmin" class="admin-profiles-view">
+      <div class="dashboard">
+        <!-- Statistics Section -->
+        <div class="stats-grid">
+          <div class="stat-card total-profiles">
+            <div class="stat-icon">👥</div>
+            <div class="stat-info">
+              <h3>{{ allProfiles.length }}</h3>
+              <p>Total Profiles</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters & Actions Section -->
+        <div class="filters-section">
+          <div class="search-box">
+            <div class="search-icon">🔍</div>
+            <input 
+              type="text" 
+              [(ngModel)]="searchQuery"
+              (input)="filterProfiles()"
+              placeholder="Search profiles..." 
+              class="search-input"
+            />
+          </div>
+          
+          <div class="filter-group">
+            <button (click)="clearFilters()" class="clear-filters-btn">
+              <span>🔄</span>
+              Clear Filters
+            </button>
+            
+            <button (click)="createProfile()" class="primary-btn create-profile-btn">
+              <span>➕</span>
+              Create New Profile
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div *ngIf="isLoading" class="loading-state">
+          <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading profiles...</span>
+          </div>
+          <p>Loading profiles...</p>
+        </div>
+
+        <!-- Profiles Table -->
+        <div *ngIf="!isLoading" class="profiles-table">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>User ID</th>
+                <th>Bio</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let profile of pagedProfiles" class="profile-row">
+                <td class="profile-name">{{ profile.name }}</td>
+                <td class="profile-user-id">{{ profile.user_id }}</td>
+                <td class="profile-bio">{{ profile.bio || 'No bio' }}</td>
+                <td class="profile-date">{{ profile.created_at | date:'shortDate' }}</td>
+                <td class="profile-actions">
+                  <button (click)="viewProfileDetails(profile)" class="action-btn view-btn" title="View Details">
+                    👁️
+                  </button>
+                  <button (click)="editProfile(profile)" class="action-btn edit-btn" title="Edit Profile">
+                    ✏️
+                  </button>
+                  <button (click)="confirmDelete(profile.id, profile.name)" class="action-btn delete-btn" title="Delete Profile" [disabled]="isDeleting">
+                    <span *ngIf="isDeleting" class="spinner-border spinner-border-sm" role="status"></span>
+                    <span *ngIf="!isDeleting">🗑️</span>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Empty States -->
+          <div *ngIf="!isLoading && filteredProfiles.length === 0 && allProfiles.length > 0" class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <h3>No profiles found</h3>
+            <p>Try adjusting your search criteria</p>
+            <button (click)="clearFilters()" class="primary-btn">Clear Search</button>
+          </div>
+
+          <div *ngIf="!isLoading && allProfiles.length === 0" class="empty-state">
+            <div class="empty-icon">👥</div>
+            <h3>No profiles yet</h3>
+            <p>There are no profiles in the system</p>
+            <button (click)="createProfile()" class="primary-btn">Create First Profile</button>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div *ngIf="!isLoading && filteredProfiles.length > 0" class="pagination-controls">
+            <div class="pagination-info">
+              Showing {{ (currentPage - 1) * itemsPerPage + 1 }} - 
+              {{ Math.min(currentPage * itemsPerPage, filteredProfiles.length) }} 
+              of {{ filteredProfiles.length }} profiles
+            </div>
+            
+            <div class="pagination-buttons">
+              <button (click)="previousPage()" [disabled]="currentPage === 1" class="pagination-btn">
+                ← Previous
+              </button>
+              
+              <div class="page-numbers">
+                <span *ngFor="let page of getPageNumbers()" (click)="goToPage(page)" [class.active]="page === currentPage" class="page-number">
+                  {{ page }}
+                </span>
+              </div>
+              
+              <button (click)="nextPage()" [disabled]="currentPage === totalPages" class="pagination-btn">
+                Next →
+              </button>
+            </div>
+
+            <div class="items-per-page">
+              <label for="itemsPerPage">Items per page:</label>
+              <select id="itemsPerPage" [(ngModel)]="itemsPerPage" (change)="onItemsPerPageChange()" class="page-select">
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
-      <button class="search-btn gradient-btn" (click)="searchProfiles()" [disabled]="isSearching">
-        <i class="fas fa-search" *ngIf="!isSearching"></i>
-        <div class="btn-loader" *ngIf="isSearching"></div>
-        {{isSearching ? 'Searching...' : 'Search Profiles'}}
-      </button>
-      <button class="clear-btn" (click)="clearSearch()" *ngIf="searchQuery">
-        Clear
-      </button>
-      <button class="count-btn" (click)="getProfileCount()" [disabled]="isCountLoading">
-        <div class="btn-loader" *ngIf="isCountLoading"></div>
-        {{isCountLoading ? 'Loading...' : 'Profiles: ' + profileCount}}
-      </button>
-      <button class="theme-btn" (click)="toggleTheme()">
-        <i class="fas" [ngClass]="isDarkMode ? 'fa-sun' : 'fa-moon'"></i>
-        {{ isDarkMode ? 'Light' : 'Dark' }}
-      </button>
     </div>
 
-    <!-- Single Profile View -->
-    <div *ngIf="showSingleProfile && selectedProfile" class="single-profile-view" [ngClass]="{'dark-theme': isDarkMode}">
-      <div class="profile-detail-card">
-        <h3>Profile #{{selectedProfile.id}} {{selectedProfile.name}}</h3>
-        <div class="detail-row">
-          <span class="detail-label">ID:</span>
-          <span class="detail-value">{{ selectedProfile.id || 'No ID' }}</span>
+    <!-- Profile Details Modal -->
+    <div *ngIf="selectedProfile && showProfileDetails" class="modal-overlay" (click)="closeProfileDetails()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Profile Details</h2>
+          <button class="modal-close" (click)="closeProfileDetails()">×</button>
         </div>
-        <div class="detail-row">
-          <span class="detail-label">Name:</span>
-          <span class="detail-value">{{ selectedProfile.name || 'No name' }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Avatar:</span>
-          <span class="detail-value">{{ selectedProfile.avatar || 'No avatar' }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Birthdate:</span>
-          <span class="detail-value">{{ selectedProfile.birthdate ? (selectedProfile.birthdate | date: 'short') : 'No birthdate' }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Bio:</span>
-          <span class="detail-value">{{ selectedProfile.bio || 'No bio' }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">User ID:</span>
-          <span class="detail-value">{{ selectedProfile.user_id || 'No user ID' }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Created At:</span>
-          <span class="detail-value">{{ selectedProfile.created_at ? (selectedProfile.created_at | date: 'short') : 'No date' }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Updated At:</span>
-          <span class="detail-value">{{ selectedProfile.updated_at ? (selectedProfile.updated_at | date: 'short') : 'No date' }}</span>
-        </div>
-        <div class="action-buttons">
-          <button (click)="showSingleProfile = false" class="back-button">Back to List</button>
+        
+        <div class="modal-body">
+          <div class="profile-details-content">
+            <div class="profile-avatar-large">
+              <span class="avatar-icon">👤</span>
+            </div>
+            
+            <div class="details-grid">
+              <div class="detail-row">
+                <span class="detail-label">Name:</span>
+                <span class="detail-value">{{ selectedProfile.name }}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">User ID:</span>
+                <span class="detail-value">{{ selectedProfile.user_id }}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Bio:</span>
+                <span class="detail-value">{{ selectedProfile.bio || 'No bio provided' }}</span>
+              </div>
+              
+              
+              <div class="detail-row">
+                <span class="detail-label">Created:</span>
+                <span class="detail-value">{{ selectedProfile.created_at | date:'longDate' }}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Last Updated:</span>
+                <span class="detail-value">{{ selectedProfile.updated_at | date:'longDate' }}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Profile List View -->
-    <div *ngIf="!showSingleProfile">
-      <div class="profile-form" [ngClass]="{'dark-theme': isDarkMode}">
-        <input [(ngModel)]="newProfile.name" placeholder="Name" required>
-        <input [(ngModel)]="newProfile.avatar" placeholder="Avatar URL">
-        <input [(ngModel)]="newProfile.birthdate" type="date" placeholder="Birthdate">
-        <textarea [(ngModel)]="newProfile.bio" placeholder="Bio"></textarea>
-        <div class="form-actions">
-          <button *ngIf="!isEditing" (click)="addProfile()" [disabled]="isAdding">
-            <span *ngIf="isAdding" class="loader"></span>
-            {{ isAdding ? 'Adding...' : 'Add Profile' }}
-          </button>
-          <button *ngIf="isEditing" (click)="updateProfile()" [disabled]="isUpdating">
-            <span *ngIf="isUpdating" class="loader"></span>
-            {{ isUpdating ? 'Updating...' : 'Update Profile' }}
-          </button>
-          <button *ngIf="isEditing" (click)="resetForm()">Cancel</button>
+    <!-- Create/Edit Profile Modal -->
+    <div *ngIf="showProfileModal" class="modal-overlay" (click)="closeModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>{{ editingProfile?.id === 0 ? 'Create New Profile' : 'Edit Profile' }}</h2>
+          <button class="modal-close" (click)="closeModal()">×</button>
         </div>
-      </div>
-
-      <div class="profile-list">
-        <div *ngIf="isLoading" class="loading-container">
-          <div class="spinner"></div>
-          <p>Loading profiles...</p>
+        
+        <div class="modal-body">
+          <form (ngSubmit)="saveProfile()" class="edit-form">
+            <div class="form-group">
+              <label for="profile-name">Name *</label>
+              <input
+                id="profile-name"
+                [(ngModel)]="editingProfile!.name"
+                name="name"
+                required
+                class="form-input"
+                [disabled]="isSaving"
+                placeholder="Enter profile name"
+              />
+            </div>
+            
+            <div class="form-group">
+            <label for="profile-user">User *</label>
+            <select
+              id="profile-user"
+              [(ngModel)]="editingProfile!.user_id"
+              name="user_id"
+              required
+              class="form-select"
+              [disabled]="isSaving"
+            >
+              <option value="">Select User</option>
+              <option *ngFor="let user of users" [value]="user.id">
+                {{ user.username }}
+              </option>
+            </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="profile-bio">Bio</label>
+              <textarea
+                id="profile-bio"
+                [(ngModel)]="editingProfile!.bio"
+                name="bio"
+                class="form-textarea"
+                [disabled]="isSaving"
+                placeholder="Enter profile bio"
+                rows="3"
+              ></textarea>
+            </div>
+            
+          
+            
+            <div class="form-group">
+              <label for="profile-avatar">Avatar URL</label>
+              <input
+                id="profile-avatar"
+                [(ngModel)]="editingProfile!.avatar"
+                name="avatar"
+                class="form-input"
+                [disabled]="isSaving"
+                placeholder="https://example.com/avatar.jpg"
+              />
+            </div>
+            
+            <div class="form-actions">
+              <button type="submit" class="modal-btn save-btn" [disabled]="isSaving">
+                <span *ngIf="isSaving" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                {{ isSaving ? 'Saving...' : (editingProfile?.id === 0 ? 'Create Profile' : 'Save Changes') }}
+              </button>
+              <button type="button" (click)="closeModal()" class="modal-btn cancel-btn" [disabled]="isSaving">
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
-        <div class="profile-list" [ngClass]="{'dark-theme': isDarkMode}">
-        <table class="profile-table" *ngIf="!isLoading">
-          <thead>
-            <tr>
-              <ng-container matColumnDef="id">
-                <th mat-header-cell *matHeaderCellDef>ID</th>
-                <td mat-cell *matCellDef="let profile">{{ profile.id }}</td>
-              </ng-container>
-              <th (click)="sortProfiles('id')" class="sortable">
-                ID 
-                <span *ngIf="sortColumn === 'id'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortProfiles('name')" class="sortable">
-                Name 
-                <span *ngIf="sortColumn === 'name'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortProfiles('avatar')" class="sortable">
-                Avatar 
-                <span *ngIf="sortColumn === 'avatar'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortProfiles('birthdate')" class="sortable">
-                Birthdate 
-                <span *ngIf="sortColumn === 'birthdate'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortProfiles('bio')" class="sortable">
-                Bio 
-                <span *ngIf="sortColumn === 'bio'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortProfiles('user_id')" class="sortable">
-                User_id 
-                <span *ngIf="sortColumn === 'user_id'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortProfiles('created_at')" class="sortable">
-                Created At 
-                <span *ngIf="sortColumn === 'created_at'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th (click)="sortProfiles('updated_at')" class="sortable">
-                Updated At 
-                <span *ngIf="sortColumn === 'updated_at'" class="sort-arrow">
-                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                </span>
-              </th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let profile of profiles" (click)="showProfileDetails(profile)" class="clickable-row">
-              <td>{{ profile.id }}</td>
-              <td>{{ profile.name }}</td>
-              <td>{{ profile.avatar || 'No avatar' }}</td>
-              <td>{{ profile.birthdate | date: 'short' }}</td>
-              <td>{{ profile.bio || 'No bio' }}</td>
-              <td>{{ profile.user_id }}</td>
-              <td>{{ profile.created_at | date: 'short' }}</td>
-              <td>{{ profile.updated_at | date: 'short' }}</td>
-              <td class="actions">
-                <button (click)="editProfile(profile); $event.stopPropagation()">Edit</button>
-                <button (click)="deleteProfile(profile.id); $event.stopPropagation()" [disabled]="isDeleting">
-                  <span *ngIf="isDeleting" class="loader"></span>
-                  {{ isDeleting ? 'Deleting...' : 'Delete' }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
-  </div>
+  </main>
 </div>

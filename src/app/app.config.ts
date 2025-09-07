@@ -1,16 +1,17 @@
-import { ApplicationConfig,provideClientHydration } from '@angular/platform-browser';
-import { provideHttpClient, withFetch } from '@angular/common/http';
-import { Routes } from '@angular/router';
+// src/app/app.config.ts
+import { ApplicationConfig } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
+// Import your interceptor function
+import { authInterceptor } from './core/interceptors/auth.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes),
-    provideHttpClient(withFetch()), provideAnimationsAsync(),
-    
-
+    provideHttpClient(
+      withInterceptors([authInterceptor]) // Register the interceptor
+    )
   ]
 };

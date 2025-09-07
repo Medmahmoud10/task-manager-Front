@@ -1,360 +1,525 @@
-import { Component, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { ActivatedRoute } from '@angular/router';
+import { Component, inject, OnInit } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatTableModule } from '@angular/material/table';
-import { TruncatePipe } from '../../../truncate.pipe';
-import { NavbarComponent } from "../component/navbar/navbar.component";
-import { catchError, Observable, of, tap } from 'rxjs';
-
-// Removed: const router = Router();
-// Removed: router.get('/', (req, res) => { ... });
+import { Router } from '@angular/router';
 
 interface Task {
   id: number;
   title: string;
   description: string;
+  status: string;
   priority: number;
-  categorie_id: number;
+  user_id: number;
+  categorie_id?: number | null;
+  profile_id?: number | null;
+  created_at: string;
+  updated_at: string;
   categorie?: {
     id: number;
     name: string;
   };
-  user_id: number;
-  profile_id: number;
-  created_at: string;
-  updated_at: string;
 }
 
-interface Categorie {
+interface Category {
   id: number;
   name: string;
+}
+
+interface Profile {
+  id: number;
+  name: string;
+  avatar?: string;
+  bio?: string;
+  user_id: number;
+}
+
+interface User {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role_id: number;
 }
 
 @Component({
   selector: 'app-tasks',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatTableModule, NavbarComponent, TruncatePipe],
+  imports: [CommonModule, FormsModule],
   templateUrl: './tasks.component.html',
   styleUrls: ['./tasks.component.scss']
 })
-export class TasksComponent {
+export class TasksComponent implements OnInit {
+  // Data properties
   tasks: Task[] = [];
-  http = inject(HttpClient);
-  route = inject(ActivatedRoute);
-  apiUrl = 'http://127.0.0.1:8000/api/tasks';
+  filteredTasks: Task[] = [];
+  allTasks: Task[] = [];
+  categories: Category[] = [];
+  profiles: Profile[] = [];
+  users: User[] = [];
   
-  categories: Categorie[] = [];
+  // UI state properties
+  isLoading: boolean = false;
+  isSaving: boolean = false;
+  isDeleting: boolean = false;
+  isDarkMode: boolean = false;
+  currentUserId: number | null = null;
+  isAdmin: boolean = false;
+  
+  // Modal and selection properties
   selectedTask: Task | null = null;
-  user_id = 1;
-  profile_id = 1;
-
-  newTask: Partial<Task> = { 
-    priority: 2,
-    categorie_id: 1,
-    user_id: 1,
-    profile_id: 1,
-    title: '',
-    description: ''
-  };
+  editingTask: Task | null = null;
+  showTaskDetails: boolean = false;
+  showEditModal: boolean = false;
+  isCreating: boolean = false;
   
-  newcategories: Partial<Categorie> = { name: '' };
-
-  isEditing = false;
-  currentYear = new Date().getFullYear();
-  showSingleTask = false;
+  // Filter and search properties
+  searchQuery: string = '';
+  statusFilter: string = 'all';
+  priorityFilter: string = 'all';
+  categoryFilter: string = 'all';
   
- getCategoryDisplay(task: Task): string {
-  // 1. First try embedded category object (if API returns it)
-  if (task.categorie?.id) {
-    return task.categorie?.id === task.categorie_id
-      ? task.categorie.name
-      : `Category mismatch: ${task.categorie.name} (ID: ${task.categorie.id})`;
-  }
-
-  // 2. Handle missing/invalid category ID
-  if (task.categorie_id === undefined || task.categorie_id === null) {
-    return 'Uncategorized';
-  }
-
-  // 3. Check if categories are loaded
-  if (!this.categories || this.categories.length === 0) {
-    return 'Loading...';
-  }
-
-  // 4. Lookup by ID
-  const found = this.categories.find(c => c.id === task.categorie_id);
-  return found?.name || `Category ${task.categorie_id}`;
-}
-
-  // Loading states
-  isLoading = false;
-  isAdding = false;
-  isUpdating = false;
-  isDeleting = false;
-  
-  // Search properties
-  searchQuery = '';
-  searchResults: Task[] = [];
-  isSearching = false;
-  
-  // Task count properties
-  taskCount = 0;
-  isCountLoading = false;
+  // Pagination properties
+  currentPage: number = 1;
+  itemsPerPage: number = 10;
+  totalPages: number = 0;
+  pagedTasks: Task[] = [];
+  Math = Math;
   
   // Message properties
-  showMessage = false;
-  messageText = '';
+  showMessage: boolean = false;
+  messageText: string = '';
   messageType: 'success' | 'error' = 'success';
-  
-  // Sort properties
-  sortColumn = '';
-  sortDirection: 'asc' | 'desc' = 'asc';
-  
-  // Theme properties
-  isDarkMode = false;
+  messageTimeout: any;
 
-  ngOnInit() {
-    // Load categories first, then tasks to ensure proper categories display
-    this.loadCategories().subscribe(() => {
-          this.loadTasks();
-      this.route.params.subscribe(params => {
-        if (params['id']) {
-          this.showTask(params['id']);
-        }
-      });
-    });
-    // this.http.get<Categorie[]>('http://127.0.0.1:8000/api/categories').subscribe({
-    //     next: (categories: any) => {
-    //       this.categories = categories.data;
-    //       console.log('Loaded categories:', this.categories);
-          
-    //       // loadTask();
-    //     },
-    //     error: (err) => {
-    //       console.error('Error loading categories:', err);
-          
-          // this.categories = [
-          //   {id: 1, name: 'Work'},
-          //   {id: 2, name: 'Personal'}, 
-          //   {id: 3, name: 'Urgent'}
-          // ];
-          // loadTask();
-        // }
-      // });
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private apiUrl = 'http://localhost:8000/api';
+
+  ngOnInit(): void {
+    this.checkUserStatus();
+    this.loadTasks();
+    this.loadCategories();
+    this.loadProfiles();
+    this.loadUsers();
   }
 
-  loadTasks() {
+  // Message methods
+  showSuccessMessage(message: string): void {
+    this.messageText = message;
+    this.messageType = 'success';
+    this.showMessage = true;
+    
+    clearTimeout(this.messageTimeout);
+    this.messageTimeout = setTimeout(() => {
+      this.showMessage = false;
+    }, 3000);
+  }
+
+  showErrorMessage(message: string): void {
+    this.messageText = message;
+    this.messageType = 'error';
+    this.showMessage = true;
+    
+    clearTimeout(this.messageTimeout);
+    this.messageTimeout = setTimeout(() => {
+      this.showMessage = false;
+    }, 3000);
+  }
+
+  closeMessage(): void {
+    this.showMessage = false;
+    clearTimeout(this.messageTimeout);
+  }
+
+  getAuthHeaders() {
+    const token = localStorage.getItem('auth_token');
+    const cleanToken = token?.replace(/['"]/g, '') || '';
+    return {
+      headers: new HttpHeaders({
+        'Authorization': `Bearer ${cleanToken}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      })
+    };
+  }
+
+  checkUserStatus(): void {
+    const userData = localStorage.getItem('user');
+    const currentUser = userData ? JSON.parse(userData) : null;
+    this.isAdmin = currentUser?.role_id === 1;
+    this.currentUserId = currentUser?.id || null;
+  }
+
+  // Data loading methods
+  loadTasks(): void {
     this.isLoading = true;
-    this.http.get<Task[]>(`${this.apiUrl}?include=categorie`).subscribe({
-      next: (tasks) => {
-        this.tasks = tasks;
-        this.taskCount = tasks.length;
+    this.http.get<any>(`${this.apiUrl}/tasks`, this.getAuthHeaders()).subscribe({
+      next: (response) => {
+        let tasks: Task[] = [];
+        if (Array.isArray(response)) {
+          tasks = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          tasks = response.data;
+        } else if (response.tasks && Array.isArray(response.tasks)) {
+          tasks = response.tasks;
+        }
+
+        this.allTasks = tasks;
+        if (!this.isAdmin) {
+          this.allTasks = tasks.filter(task => task.user_id === this.currentUserId);
+        }
+        this.filteredTasks = [...this.allTasks];
+        this.updatePagination();
         this.isLoading = false;
       },
-      error: () => {
+      error: (err) => {
+        console.error('Error loading tasks:', err);
+        this.showErrorMessage('Failed to load tasks');
         this.isLoading = false;
       }
-
-      
     });
-      if (this.categories.length === 0) {
-      // this.loadCategories().subscribe(() => {
-      //   this.fetchTasks();
-      // });
-    } else {
-      this.fetchTasks();
-  }
   }
 
-  loadCategories(): Observable<Categorie[]> {
-  return this.http.get<Categorie[]>('http://127.0.0.1:8000/api/categories').pipe(
-    tap((categories: any) => {
-      this.categories = categories.data;
-      console.log('Loaded categories:', this.categories);
-    }),
-    catchError(err => {
-      console.error('Error loading categories:', err);
-      return of([]);
-    })
-  );
-}
-  fetchTasks() {
-  this.http.get<Task[]>(`${this.apiUrl}?with=categorie`).subscribe({
-    next: (tasks) => {
-      this.tasks = tasks.map(task => {
-        // Ensure every task has proper category info
-        if (!task.categorie && task.categorie_id) {
-          task.categorie = this.categories.find(c => c.id === task.categorie_id);
+  loadCategories(): void {
+    this.http.get<any>(`${this.apiUrl}/categories`, this.getAuthHeaders()).subscribe({
+      next: (response) => {
+        let categories: Category[] = [];
+        if (Array.isArray(response)) {
+          categories = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          categories = response.data;
+        } else if (response.categories && Array.isArray(response.categories)) {
+          categories = response.categories;
         }
-        return task;
-      });
-      this.isLoading = false;
-    },
-    error: () => {
-      this.isLoading = false;
-    }
-  });
-}
-
-  getTasks(): Observable<Task[]> {
-    return this.http.get<Task[]>(this.apiUrl);
+        this.categories = categories;
+      },
+      error: (err) => {
+        console.error('Error loading categories:', err);
+      }
+    });
   }
 
-  addCategorie() {
-    if (!this.newcategories.name?.trim()) {
-      alert('Category name is required');
+  loadProfiles(): void {
+    this.http.get<any>(`${this.apiUrl}/profiles`, this.getAuthHeaders()).subscribe({
+      next: (response) => {
+        let profiles: Profile[] = [];
+        if (Array.isArray(response)) {
+          profiles = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          profiles = response.data;
+        } else if (response.profiles && Array.isArray(response.profiles)) {
+          profiles = response.profiles;
+        }
+        this.profiles = profiles;
+      },
+      error: (err) => {
+        console.error('Error loading profiles:', err);
+      }
+    });
+  }
+
+  loadUsers(): void {
+    this.http.get<any>(`${this.apiUrl}/users`, this.getAuthHeaders()).subscribe({
+      next: (response) => {
+        let users: User[] = [];
+        if (Array.isArray(response)) {
+          users = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          users = response.data;
+        } else if (response.users && Array.isArray(response.users)) {
+          users = response.users;
+        }
+        this.users = users;
+      },
+      error: (err) => {
+        console.error('Error loading users:', err);
+      }
+    });
+  }
+
+  // Filter and search methods
+  filterTasks(): void {
+    if (!this.searchQuery.trim()) {
+      this.filteredTasks = this.allTasks;
+    } else {
+      const query = this.searchQuery.toLowerCase();
+      this.filteredTasks = this.allTasks.filter(task =>
+        task.title.toLowerCase().includes(query) ||
+        task.description.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply additional filters
+    if (this.statusFilter !== 'all') {
+      this.filteredTasks = this.filteredTasks.filter(task => task.status === this.statusFilter);
+    }
+
+    if (this.priorityFilter !== 'all') {
+      this.filteredTasks = this.filteredTasks.filter(task => task.priority.toString() === this.priorityFilter);
+    }
+
+    if (this.categoryFilter !== 'all') {
+      this.filteredTasks = this.filteredTasks.filter(task => 
+        task.categorie_id && task.categorie_id.toString() === this.categoryFilter
+      );
+    }
+
+    this.currentPage = 1;
+    this.updatePagination();
+  }
+
+  clearFilters(): void {
+    this.searchQuery = '';
+    this.statusFilter = 'all';
+    this.priorityFilter = 'all';
+    this.categoryFilter = 'all';
+    this.filteredTasks = this.allTasks;
+    this.updatePagination();
+  }
+
+  // Pagination methods
+  updatePagination() {
+    this.totalPages = Math.ceil(this.filteredTasks.length / this.itemsPerPage);
+    
+    if (this.currentPage > this.totalPages) {
+      this.currentPage = this.totalPages || 1;
+    }
+    
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    const endIndex = startIndex + this.itemsPerPage;
+    this.pagedTasks = this.filteredTasks.slice(startIndex, endIndex);
+  }
+
+  goToPage(page: number) {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+      this.updatePagination();
+    }
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+      this.updatePagination();
+    }
+  }
+
+  previousPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.updatePagination();
+    }
+  }
+
+  onItemsPerPageChange() {
+    this.currentPage = 1;
+    this.updatePagination();
+  }
+
+  getPageNumbers(): number[] {
+    const pages: number[] = [];
+    const maxVisiblePages = 5;
+    
+    if (this.totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= this.totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      
+      let start = Math.max(2, this.currentPage - 1);
+      let end = Math.min(this.totalPages - 1, this.currentPage + 1);
+      
+      if (this.currentPage <= 3) {
+        end = 4;
+      }
+      
+      if (this.currentPage >= this.totalPages - 2) {
+        start = this.totalPages - 3;
+      }
+      
+      for (let i = start; i <= end; i++) {
+        if (i > 1 && i < this.totalPages) {
+          pages.push(i);
+        }
+      }
+      
+      pages.push(this.totalPages);
+    }
+    
+    return pages;
+  }
+
+  // Task operations
+  createTask(): void {
+    if (!this.isAdmin) {
+      this.showErrorMessage('Only administrators can create tasks');
       return;
     }
-    this.http.post<Categorie>('http://localhost:8000/api/categories', this.newcategories).subscribe({
-      next: (response) => {
-        this.categories.push(response);
-        this.newcategories.name = '';
-      },
-      error: (err) => console.error('Error adding categories:', err)
-    });
-  }
-
-  updateTaskcategories(task: Task) {
-    this.http.patch(`${this.apiUrl}/${task.id}`, {
-      categories: task.categorie_id
-    }).subscribe({
-      next: () => this.showSuccessToast('Catégorie mise à jour'),
-      error: (err) => console.error('Erreur:', err)
-    });
-  }
-
-  getCategorieName(categoryId: number): string {
-    if (!this.categories || this.categories.length === 0) return 'Loading...';
-    const categorie = this.categories.find(c => c.id === categoryId);
-    return categorie?.name || `Category ${categoryId}`;
-  }
-
-  getDisplayCategory(task: Task): string {
-  // First try the embedded categorie object
-  if (task.categorie?.name) {
-    return task.categorie.name;
-  }
-  
-  // Then try to find in loaded categories
-  if (task.categorie_id && this.categories.length) {
-    const found = this.categories.find(c => c.id === task.categorie_id);
-    if (found) return found.name;
-  }
-  
-  // Final fallback
-  return `Category ${task.categorie_id || 'Unknown'}`;
-}
-
-  showTask(id: number) {
-    const loadTask = () => {
-      this.http.get<Task>(`${this.apiUrl}/${id}`).subscribe({
-        next: (task) => {
-          this.selectedTask = task;
-          this.showSingleTask = true;
-        },
-        error: (err) => {
-          alert('Error loading task details');
-        }
-      });
+    
+    this.editingTask = {
+      id: 0,
+      title: '',
+      description: '',
+      status: 'pending',
+      priority: 2,
+      user_id: 0,
+      categorie_id: null,
+      profile_id: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
-      }
-
-  private showSuccessToast(message: string): void {
-    alert(message); 
+    this.isCreating = true;
+    this.showEditModal = true;
   }
 
-
-  verifycategoriesMatches() {
-    this.tasks.forEach(task => {
-      const found = this.categories.some(c => c.id === task.categorie_id);
-    });
-  }
-
-  addTask() {
-    if (!this.newTask.categorie_id) {
-      this.newTask.categorie_id = this.categories[0]?.id || 1;
+  editTask(task: Task): void {
+    if (!this.isAdmin && task.user_id !== this.currentUserId) {
+      this.showErrorMessage('You can only edit your own tasks');
+      return;
     }
-    if (!this.validateTask()) return;
 
-    this.isAdding = true;
-    const taskData = {
-      title: this.newTask.title,
-      description: this.newTask.description || '',
-      priority: Number(this.newTask.priority),
-      categories: Number(this.newTask.categorie_id),
-      // user_id: Number(this.newTask.user_id),
-      // profile_id: Number(this.newTask.profile_id)
-    };
-
-    this.http.post<Task>(this.apiUrl, taskData).subscribe({
-      next: (response) => {
-        this.loadTasks();
-        this.resetForm();
-        this.showSuccessMessage('Task created successfully!');
-        this.isAdding = false;
-      },
-      error: (err) => {
-        this.showErrorMessage('Failed to create task');
-        this.isAdding = false;
-      }
-    });
+    this.editingTask = { ...task };
+    this.isCreating = false;
+    this.showEditModal = true;
   }
 
-  private validateTask(): boolean {
-    if (!this.newTask.title?.trim()) {
+  saveTask(): void {
+    if (!this.editingTask) return;
+
+    if (!this.editingTask.title.trim()) {
       this.showErrorMessage('Task title is required');
-      return false;
+      return;
     }
-    if (!this.newTask.categorie_id) {
-      this.showErrorMessage('Please select a category');
-      return false;
-    }
-    return true;
-  }
 
-  editTask(task: Task) {
-    this.isEditing = true;
-    this.newTask = { ...task };
-  }
+    this.isSaving = true;
 
-  updateTask() {
-    if (!this.newTask.id) return;
-    this.isUpdating = true;
-    this.http.put<Task>(`${this.apiUrl}/${this.newTask.id}`, this.newTask).subscribe({
-      next: () => {
-        this.loadTasks();
-        this.resetForm();
-        this.showSuccessMessage('Task updated successfully!');
-        this.isUpdating = false;
-      },
-      error: (err) => {
-        this.showErrorMessage('Failed to update task');
-        this.isUpdating = false;
-      }
-    });
-  }
+    const taskData = {
+      title: this.editingTask.title.trim(),
+      description: this.editingTask.description?.trim() || '',
+      status: this.editingTask.status,
+      priority: this.editingTask.priority,
+      user_id: this.editingTask.user_id,
+      categorie_id: this.editingTask.categorie_id,
+      profile_id: this.editingTask.profile_id
+    };
 
-  deleteTask(id: number) {
-    if (confirm('Are you sure you want to delete this task?')) {
-      this.isDeleting = true;
-      this.http.delete(`${this.apiUrl}/${id}`).subscribe({
-        next: () => {
+    if (this.isCreating) {
+      this.http.post<Task>(`${this.apiUrl}/tasks`, taskData, this.getAuthHeaders()).subscribe({
+        next: (response) => {
+          this.showSuccessMessage('Task created successfully!');
+          this.closeEditModal();
           this.loadTasks();
-          this.showSuccessMessage('Task deleted successfully!');
-          this.isDeleting = false;
+          this.isSaving = false;
         },
         error: (err) => {
-          this.showErrorMessage('Failed to delete task');
-          this.isDeleting = false;
+          this.showErrorMessage('Failed to create task');
+          this.isSaving = false;
+        }
+      });
+    } else {
+      this.http.put<Task>(`${this.apiUrl}/tasks/${this.editingTask.id}`, taskData, this.getAuthHeaders()).subscribe({
+        next: (response) => {
+          this.showSuccessMessage('Task updated successfully!');
+          this.closeEditModal();
+          this.loadTasks();
+          this.isSaving = false;
+        },
+        error: (err) => {
+          this.showErrorMessage('Failed to update task');
+          this.isSaving = false;
         }
       });
     }
   }
 
-  getPriorityText(priority: number): string {
-    switch(priority) {
+  confirmDelete(taskId: number, taskTitle: string): void {
+    if (!this.isAdmin) {
+      this.showErrorMessage('Only administrators can delete tasks');
+      return;
+    }
+
+    const confirmed = window.confirm(`Are you sure you want to delete the task "${taskTitle}"?`);
+    
+    if (confirmed) {
+      this.deleteTask(taskId);
+    }
+  }
+
+  deleteTask(taskId: number): void {
+    this.isDeleting = true;
+    this.http.delete(`${this.apiUrl}/tasks/${taskId}`, this.getAuthHeaders()).subscribe({
+      next: () => {
+        this.showSuccessMessage('Task deleted successfully!');
+        this.loadTasks();
+        this.isDeleting = false;
+      },
+      error: (err) => {
+        this.showErrorMessage('Failed to delete task');
+        this.isDeleting = false;
+      }
+    });
+  }
+
+  updateTaskStatus(task: Task, newStatus: string): void {
+    if (!this.isAdmin && newStatus === 'completed') {
+      this.showErrorMessage('Only administrators can mark tasks as completed');
+      return;
+    }
+
+    this.http.patch(`${this.apiUrl}/tasks/${task.id}/status`, 
+      { status: newStatus }, 
+      this.getAuthHeaders()
+    ).subscribe({
+      next: () => {
+        this.showSuccessMessage(`Task status updated to ${this.getStatusLabel(newStatus)}`);
+        this.loadTasks();
+      },
+      error: (err) => {
+        this.showErrorMessage('Failed to update task status');
+      }
+    });
+  }
+
+  viewTaskDetails(task: Task): void {
+    this.selectedTask = task;
+    this.showTaskDetails = true;
+  }
+
+  closeTaskDetails(): void {
+    this.selectedTask = null;
+    this.showTaskDetails = false;
+  }
+
+  closeEditModal(): void {
+    this.editingTask = null;
+    this.showEditModal = false;
+    this.isCreating = false;
+  }
+
+  // Utility methods
+  getStatusLabel(status: string): string {
+    switch (status) {
+      case 'pending': return 'Pending';
+      case 'in_progress': return 'In Progress';
+      case 'completed': return 'Completed';
+      default: return status;
+    }
+  }
+
+  getStatusClass(status: string): string {
+    switch (status) {
+      case 'pending': return 'status-pending';
+      case 'in_progress': return 'status-progress';
+      case 'completed': return 'status-completed';
+      default: return 'status-unknown';
+    }
+  }
+
+  getPriorityLabel(priority: number): string {
+    switch (priority) {
       case 1: return 'High';
       case 2: return 'Medium';
       case 3: return 'Low';
@@ -362,114 +527,61 @@ export class TasksComponent {
     }
   }
 
-  resetForm() {
-    this.newTask = { 
-      priority: 2,
-      title: '',
-      description: '',
-      categorie_id: this.categories.length > 0 ? this.categories[0].id : 1,
-      user_id: this.user_id,
-      profile_id: this.profile_id
-    };
-    this.isEditing = false;
-  }
-
-  searchTasks() {
-    if (!this.searchQuery.trim()) {
-      this.searchResults = [];
-      return;
-    }
-    
-    this.isSearching = true;
-    const query = this.searchQuery.toLowerCase();
-    
-    setTimeout(() => {
-      this.searchResults = this.tasks.filter(task => 
-        task.title.toLowerCase().includes(query) ||
-        task.description.toLowerCase().includes(query) ||
-        this.getPriorityText(task.priority).toLowerCase().includes(query)
-      );
-      this.isSearching = false;
-    }, 500);
-  }
-
-  onSearchKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter' || (event.ctrlKey && event.key === 'Enter')) {
-      this.searchTasks();
+  getPriorityClass(priority: number): string {
+    switch (priority) {
+      case 1: return 'priority-high';
+      case 2: return 'priority-medium';
+      case 3: return 'priority-low';
+      default: return 'priority-unknown';
     }
   }
 
-  clearSearch() {
-    this.searchQuery = '';
-    this.searchResults = [];
+  getCategoryName(categoryId: number | null | undefined): string {
+  if (categoryId === null || categoryId === undefined) return 'Uncategorized';
+  const category = this.categories.find(c => c.id === categoryId);
+  return category ? category.name : 'Unknown Category';
   }
 
-  showTaskFromSearch(task: Task) {
-    this.selectedTask = task;
-    this.showSingleTask = true;
-    this.searchQuery = '';
-    this.searchResults = [];
-  }
+  
 
-  showTaskDetails(task: Task) {
-    console.log('Showing task details:', task);
-    this.selectedTask = task;
-    this.showSingleTask = true;
-  }
-
-  getTaskCount() {
-    this.isCountLoading = true;
-    setTimeout(() => {
-      this.taskCount = this.tasks.length;
-      this.isCountLoading = false;
-    }, 300);
-  }
-
-  showSuccessMessage(message: string) {
-    this.messageText = message;
-    this.messageType = 'success';
-    this.showMessage = true;
-    setTimeout(() => this.showMessage = false, 3000);
-  }
-
-  showErrorMessage(message: string) {
-    this.messageText = message;
-    this.messageType = 'error';
-    this.showMessage = true;
-    setTimeout(() => this.showMessage = false, 3000);
-  }
-
-  sortTasks(column: string) {
-    if (this.sortColumn === column) {
-      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-      this.sortColumn = column;
-      this.sortDirection = 'asc';
+  getUserName(userId: number): string {
+    const user = this.users.find(u => u.id === userId);
+    if (!user) return 'Unknown User';
+    if (user.first_name && user.last_name) {
+      return `${user.first_name} ${user.last_name}`;
     }
-
-    this.tasks.sort((a, b) => {
-      let valueA: any = a[column as keyof Task];
-      let valueB: any = b[column as keyof Task];
-
-      if (column === 'priority') {
-        valueA = this.getPriorityText(valueA);
-        valueB = this.getPriorityText(valueB);
-      } else if (column === 'categorie_id') {
-        valueA = this.getCategorieName(valueA);
-        valueB = this.getCategorieName(valueB);
-      }
-
-      if (valueA < valueB) {
-        return this.sortDirection === 'asc' ? -1 : 1;
-      }
-      if (valueA > valueB) {
-        return this.sortDirection === 'asc' ? 1 : -1;
-      }
-      return 0;
-    });
+    return user.username;
   }
 
-  toggleTheme() {
+  getProfileName(profileId: number | null | undefined): string {
+  if (profileId === null || profileId === undefined) return 'No Profile';
+  const profile = this.profiles.find(p => p.id === profileId);
+  return profile ? profile.name : 'Unknown Profile';
+  }
+
+  // Statistics methods
+  getTotalTasks(): number {
+    return this.allTasks.length;
+  }
+
+  getTaskCountByStatus(status: string): number {
+    return this.allTasks.filter(task => task.status === status).length;
+  }
+
+  // Navigation and theme
+  toggleTheme(): void {
     this.isDarkMode = !this.isDarkMode;
+  }
+
+  navigateToProfile(): void {
+    if (this.currentUserId) {
+      this.router.navigate(['/profile', this.currentUserId]);
+    } else {
+      this.router.navigate(['/profile']);
+    }
+  }
+
+  navigateToTasks(): void {
+    this.router.navigate(['/tasks']);
   }
 }

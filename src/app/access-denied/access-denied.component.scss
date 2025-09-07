@@ -1,0 +1,93 @@
+.access-denied-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 70vh;
+      padding: 2rem;
+    }
+    
+    .access-denied-card {
+      background: white;
+      padding: 3rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      max-width: 500px;
+      width: 100%;
+    }
+    
+    .icon {
+      font-size: 4rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    h1 {
+      color: #dc3545;
+      margin: 0 0 1rem 0;
+      font-size: 2rem;
+    }
+    
+    p {
+      color: #6c757d;
+      margin: 0.5rem 0;
+    }
+    
+    .user-info {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      text-align: left;
+    }
+    
+    .user-info p {
+      margin: 0.5rem 0;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin: 2rem 0;
+    }
+    
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #0056b3;
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #545b62;
+    }
+    
+    .admin-note {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-top: 1.5rem;
+    }
+    
+    .admin-note p {
+      margin: 0.5rem 0;
+      color: #856404;
+    }

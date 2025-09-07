@@ -1,8 +1,8 @@
-import { Component, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Component, inject, OnInit } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatTableModule } from '@angular/material/table';
+import { Router } from '@angular/router';
 import { catchError, Observable, of } from 'rxjs';
 
 interface Category {
@@ -15,267 +15,315 @@ interface Category {
 @Component({
   selector: 'app-categories',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatTableModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './categories.component.html',
-  styleUrl: './categories.component.scss'
+  styleUrls: ['./categories.component.scss']
 })
-export class CategoriesComponent {
+export class CategoriesComponent implements OnInit {
+  // Properties
   categories: Category[] = [];
-  private http = inject(HttpClient);
-  private apiUrl = 'http://127.0.0.1:8000/api/categories';
-  
+  allCategories: Category[] = [];
+  filteredCategories: Category[] = [];
+  pagedCategories: Category[] = [];
   selectedCategory: Category | null = null;
+  editingCategory: Category | null = null;
+  searchQuery: string = '';
+  roleFilter: string = 'all';
+  isDarkMode: boolean = false;
+  isLoading: boolean = false;
+  isSaving: boolean = false;
+  isDeleting: boolean = false;
+  isCreating: boolean = false;
+  showCategoryDetails: boolean = false;
+  showEditModal: boolean = false;
   
-  newCategory: Partial<Category> = {
-    name: ''
-  };
+  // Pagination
+  currentPage: number = 1;
+  itemsPerPage: number = 10;
+  totalPages: number = 0;
+  Math = Math;
   
-  isEditing = false;
-  showSingleCategory = false;
-  
-  // Loading states
-  isLoading = false;
-  isAdding = false;
-  isUpdating = false;
-  isDeleting = false;
-  
-  // Search properties
-  searchQuery = '';
-  searchResults: Category[] = [];
-  isSearching = false;
-  
-  // Category count properties
-  categoryCount = 0;
-  isCountLoading = false;
-  
-  // Message properties
-  showMessage = false;
-  messageText = '';
+  // Messages
+  showMessage: boolean = false;
+  messageText: string = '';
   messageType: 'success' | 'error' = 'success';
-  
-  // Search error property
-  searchError = false;
-  
-  // Sort properties
-  sortColumn = '';
-  sortDirection: 'asc' | 'desc' = 'asc';
-  
-  // Theme properties
-  isDarkMode = false;
+  messageTimeout: any;
+
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private apiUrl = 'http://127.0.0.1:8000/api/categories';
 
   ngOnInit() {
     this.loadCategories();
   }
 
+  // Message methods
+  showSuccessMessage(message: string): void {
+    this.messageText = message;
+    this.messageType = 'success';
+    this.showMessage = true;
+    
+    clearTimeout(this.messageTimeout);
+    this.messageTimeout = setTimeout(() => {
+      this.showMessage = false;
+    }, 3000);
+  }
+
+  showErrorMessage(message: string): void {
+    this.messageText = message;
+    this.messageType = 'error';
+    this.showMessage = true;
+    
+    clearTimeout(this.messageTimeout);
+    this.messageTimeout = setTimeout(() => {
+      this.showMessage = false;
+    }, 3000);
+  }
+
+  closeMessage(): void {
+    this.showMessage = false;
+    clearTimeout(this.messageTimeout);
+  }
+
+  getAuthHeaders() {
+    const token = localStorage.getItem('auth_token');
+    const cleanToken = token?.replace(/['"]/g, '') || '';
+    return {
+      headers: new HttpHeaders({
+        'Authorization': `Bearer ${cleanToken}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      })
+    };
+  }
+
   loadCategories() {
     this.isLoading = true;
-    console.log('Loading categories from:', this.apiUrl);
-    this.getCategories().subscribe({
-      next: (categoryData: any) => {
-        console.log('Categories received:', categoryData);
-        // Handle different API response formats
-        if (Array.isArray(categoryData)) {
-          this.categories = categoryData;
-        } else if (categoryData && categoryData.data && Array.isArray(categoryData.data)) {
-          this.categories = categoryData.data;
-        } else if (categoryData && categoryData.categories && Array.isArray(categoryData.categories)) {
-          this.categories = categoryData.categories;
+    this.http.get<any>(this.apiUrl, this.getAuthHeaders()).subscribe({
+      next: (response) => {
+        // Handle different response formats
+        if (Array.isArray(response)) {
+          this.categories = response;
+        } else if (response && response.data) {
+          this.categories = response.data;
+        } else if (response && response.categories) {
+          this.categories = response.categories;
         } else {
           this.categories = [];
         }
-        this.categoryCount = this.categories.length;
-        console.log('Categories loaded:', this.categories.length);
+        
+        this.allCategories = [...this.categories];
+        this.filteredCategories = [...this.categories];
+        this.updatePagination();
         this.isLoading = false;
       },
       error: (error) => {
         console.error('Error loading categories:', error);
-        this.categories = [];
-        this.showErrorMessage('Failed to load categories from API');
+        this.showErrorMessage('Failed to load categories');
         this.isLoading = false;
       }
     });
   }
 
-  getCategories(): Observable<Category[]> {
-    return this.http.get<Category[]>(this.apiUrl);
-  }
-
-  showCategory(id: number) {
-    this.http.get<Category>(`${this.apiUrl}/${id}`).subscribe({
-      next: (category) => {
-        this.selectedCategory = category;
-        this.showSingleCategory = true;
-      },
-      error: (err) => {
-        this.showErrorMessage('Error loading category details');
-      }
-    });
-  }
-
-  addCategory() {
-    if (!this.validateCategory()) return;
+  // Pagination methods
+  updatePagination() {
+    this.totalPages = Math.ceil(this.filteredCategories.length / this.itemsPerPage);
     
-    this.isAdding = true;
-    this.http.post<Category>(this.apiUrl, this.newCategory).subscribe({
-      next: (response) => {
-        this.loadCategories();
-        this.resetForm();
-        this.showSuccessMessage('Category added successfully!');
-        this.isAdding = false;
-      },
-      error: (err) => {
-        this.showErrorMessage('Failed to add category');
-        this.isAdding = false;
-      }
-    });
+    if (this.currentPage > this.totalPages) {
+      this.currentPage = this.totalPages || 1;
+    }
+    
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    const endIndex = startIndex + this.itemsPerPage;
+    this.pagedCategories = this.filteredCategories.slice(startIndex, endIndex);
   }
 
-  private validateCategory(): boolean {
-    if (!this.newCategory.name?.trim()) {
-      this.showErrorMessage('Category name is required');
-      return false;
+  goToPage(page: number) {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+      this.updatePagination();
     }
-    return true;
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+      this.updatePagination();
+    }
+  }
+
+  previousPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.updatePagination();
+    }
+  }
+
+  onItemsPerPageChange() {
+    this.currentPage = 1;
+    this.updatePagination();
+  }
+
+  getPageNumbers(): number[] {
+    const pages: number[] = [];
+    const maxVisiblePages = 5;
+    
+    if (this.totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= this.totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      
+      let start = Math.max(2, this.currentPage - 1);
+      let end = Math.min(this.totalPages - 1, this.currentPage + 1);
+      
+      if (this.currentPage <= 3) {
+        end = 4;
+      }
+      
+      if (this.currentPage >= this.totalPages - 2) {
+        start = this.totalPages - 3;
+      }
+      
+      for (let i = start; i <= end; i++) {
+        if (i > 1 && i < this.totalPages) {
+          pages.push(i);
+        }
+      }
+      
+      pages.push(this.totalPages);
+    }
+    
+    return pages;
+  }
+
+  // Search and filter
+  filterCategories() {
+    if (!this.searchQuery.trim()) {
+      this.filteredCategories = this.allCategories;
+    } else {
+      const query = this.searchQuery.toLowerCase();
+      this.filteredCategories = this.allCategories.filter(category =>
+        category.name.toLowerCase().includes(query)
+      );
+    }
+    this.currentPage = 1;
+    this.updatePagination();
+  }
+
+  clearFilters() {
+    this.searchQuery = '';
+    this.filteredCategories = this.allCategories;
+    this.updatePagination();
+  }
+
+  // Category operations
+  createCategory() {
+    this.editingCategory = {
+      id: 0,
+      name: '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    this.isCreating = true;
+    this.showEditModal = true;
   }
 
   editCategory(category: Category) {
-    this.isEditing = true;
-    this.newCategory = { ...category };
+    this.editingCategory = { ...category };
+    this.isCreating = false;
+    this.showEditModal = true;
   }
 
-  updateCategory() {
-    if (!this.newCategory.id) return;
-    this.isUpdating = true;
-    this.http.put<Category>(`${this.apiUrl}/${this.newCategory.id}`, this.newCategory).subscribe({
-      next: () => {
-        this.loadCategories();
-        this.resetForm();
-        this.showSuccessMessage('Category updated successfully!');
-        this.isUpdating = false;
-      },
-      error: (err) => {
-        this.showErrorMessage('Failed to update category');
-        this.isUpdating = false;
-      }
-    });
-  }
+  saveCategory() {
+    if (!this.editingCategory) return;
 
-  deleteCategory(id: number) {
-    if (confirm('Are you sure you want to delete this category?')) {
-      this.isDeleting = true;
-      this.http.delete(`${this.apiUrl}/${id}`).subscribe({
-        next: () => {
+    if (!this.editingCategory.name.trim()) {
+      this.showErrorMessage('Category name is required');
+      return;
+    }
+
+    this.isSaving = true;
+
+    if (this.isCreating) {
+      this.http.post<Category>(this.apiUrl, { name: this.editingCategory.name }, this.getAuthHeaders()).subscribe({
+        next: (response) => {
+          this.showSuccessMessage('Category created successfully!');
+          this.closeEditModal();
           this.loadCategories();
-          this.showSuccessMessage('Category deleted successfully!');
-          this.isDeleting = false;
+          this.isSaving = false;
         },
-        error: (err) => {
-          this.showErrorMessage('Failed to delete category');
-          this.isDeleting = false;
+        error: (error) => {
+          this.showErrorMessage('Failed to create category');
+          this.isSaving = false;
+        }
+      });
+    } else {
+      this.http.put<Category>(`${this.apiUrl}/${this.editingCategory.id}`, { name: this.editingCategory.name }, this.getAuthHeaders()).subscribe({
+        next: (response) => {
+          this.showSuccessMessage('Category updated successfully!');
+          this.closeEditModal();
+          this.loadCategories();
+          this.isSaving = false;
+        },
+        error: (error) => {
+          this.showErrorMessage('Failed to update category');
+          this.isSaving = false;
         }
       });
     }
   }
 
-  resetForm() {
-    this.newCategory = {
-      name: ''
-    };
-    this.isEditing = false;
-  }
-
-  searchCategories() {
-    if (!this.searchQuery.trim()) {
-      this.searchResults = [];
-      this.searchError = false;
-      return;
-    }
+  confirmDelete(categoryId: number, categoryName: string) {
+    const confirmed = window.confirm(`Are you sure you want to delete the category "${categoryName}"?`);
     
-    this.isSearching = true;
-    this.searchError = false;
-    const query = this.searchQuery.toLowerCase();
-    
-    setTimeout(() => {
-      this.searchResults = this.categories.filter(category => 
-        category.name.toLowerCase().includes(query)
-      );
-      this.isSearching = false;
-      if (this.searchResults.length === 0) {
-        this.searchError = true;
-      }
-    }, 500);
-  }
-
-  onSearchKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter' || (event.ctrlKey && event.key === 'Enter')) {
-      this.searchCategories();
+    if (confirmed) {
+      this.deleteCategory(categoryId);
     }
   }
 
-  showCategoryFromSearch(category: Category) {
-    this.selectedCategory = category;
-    this.showSingleCategory = true;
-    this.searchQuery = '';
-    this.searchResults = [];
-  }
-
-  showCategoryDetails(category: Category) {
-    console.log('Showing category details:', category);
-    this.selectedCategory = category;
-    this.showSingleCategory = true;
-  }
-
-  clearSearch() {
-    this.searchQuery = '';
-    this.searchResults = [];
-    this.searchError = false;
-  }
-
-  getCategoryCount() {
-    this.isCountLoading = true;
-    setTimeout(() => {
-      this.categoryCount = this.categories.length;
-      this.isCountLoading = false;
-    }, 300);
-  }
-
-  showSuccessMessage(message: string) {
-    this.messageText = message;
-    this.messageType = 'success';
-    this.showMessage = true;
-    setTimeout(() => this.showMessage = false, 3000);
-  }
-
-  showErrorMessage(message: string) {
-    this.messageText = message;
-    this.messageType = 'error';
-    this.showMessage = true;
-    setTimeout(() => this.showMessage = false, 3000);
-  }
-
-  sortCategories(column: string) {
-    if (this.sortColumn === column) {
-      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-      this.sortColumn = column;
-      this.sortDirection = 'asc';
-    }
-
-    this.categories.sort((a, b) => {
-      let valueA: any = a[column as keyof Category];
-      let valueB: any = b[column as keyof Category];
-
-      if (valueA < valueB) {
-        return this.sortDirection === 'asc' ? -1 : 1;
+  deleteCategory(categoryId: number) {
+    this.isDeleting = true;
+    this.http.delete(`${this.apiUrl}/${categoryId}`, this.getAuthHeaders()).subscribe({
+      next: () => {
+        this.showSuccessMessage('Category deleted successfully!');
+        this.loadCategories();
+        this.isDeleting = false;
+      },
+      error: (error) => {
+        this.showErrorMessage('Failed to delete category');
+        this.isDeleting = false;
       }
-      if (valueA > valueB) {
-        return this.sortDirection === 'asc' ? 1 : -1;
-      }
-      return 0;
     });
+  }
+
+  viewCategoryDetails(category: Category) {
+    this.selectedCategory = category;
+    this.showCategoryDetails = true;
+  }
+
+  closeCategoryDetails() {
+    this.selectedCategory = null;
+    this.showCategoryDetails = false;
+  }
+
+  closeEditModal() {
+    this.editingCategory = null;
+    this.showEditModal = false;
+    this.isCreating = false;
   }
 
   toggleTheme() {
     this.isDarkMode = !this.isDarkMode;
+  }
+
+  navigateToProfile() {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    if (currentUser && currentUser.id) {
+      this.router.navigate(['/profile', currentUser.id]);
+    } else {
+      this.router.navigate(['/profile']);
+    }
   }
 }
